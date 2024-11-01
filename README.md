@@ -3,9 +3,10 @@
 * Author: [Douglas P. Fields, Jr.](mailto:symbolics@lisp.engineer)
 * Copyright 2024, Douglas P. Fields Jr.
 * License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt)
+* [Repo Self-Link](https://github.com/LispEngineer/stm-midi-poc1-sw)
 
 Pinout Design Software for my 
-[STM32 MIDI Synthesizer PoC 1](https://github.com/LispEngineer/stm-midi-poc1)
+[STM32 MIDI Synthesizer PoC 1](https://github.com/LispEngineer/stm-midi-poc1).
 
 Software:
 * Windows 11
