@@ -50,24 +50,32 @@ this functionality:
 
 # TODO
 
-* Make the LED code toggle the LED on my board
-* Make the button reading code read a button on my board
+* DONE Make the LED code toggle the LED on my board
+* DONE Make the button reading code read a button on my board
 * Transfer the memory map over
-* Set up the clocks
-* Set up the UARTS
+* DONE Set up the clocks
+* DONE Set up the UARTS
   * Console: 460,800, Overrun enable, DMA on RX Error enable
   * MIDI: 31,250 Bits/s, 8-N-1, overrun enable, DMA on RX Error enable
+* DONE Set up NVIC
+  * USARTx global interrupt (3, 6) with preemption priority (2, 3)
+  * 3 bits for pre-emption
+* DONE Update the text/functionality
 * Set up the DMA
   * SPIx_TX -> DMA 1 Stream x (was 3, 5)
   * Circular to Memory
   * Half Word both ways
   * Global interrupt & preemption priority ("Force DMA channels interrupts")
-* Set up NVIC
-  * USARTx global interrupt (3, 6) with preemption priority (2, 3)
-  * 3 bits for pre-emption
 * Set up I2S
   * Master Transmit
   * I2S Philips
   * 16 bits data on 16 bits frame
   * 32 KHz
   * Clock Polarity Low
+  
+  
+  
+# EVT1 Problems Noted
+
+* Console is USART2
+  * Nucleo boards use UART3 (oops!)

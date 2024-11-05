@@ -23,18 +23,21 @@
 #include "midi.h"
 #include "tonegen.h"
 
-#define FAST_BSS __attribute((section(".fast_bss")))
-#define FAST_DATA __attribute((section(".fast_data")))
+// When we set up our memory map, use these
+// #define FAST_BSS __attribute((section(".fast_bss")))
+// #define FAST_DATA __attribute((section(".fast_data")))
+#define FAST_BSS
+#define FAST_DATA
 
-#define WELCOME_MSG "Doug's MIDI console v6\r\n"
+#define WELCOME_MSG "Doug's MIDI console v7\r\n"
 #define MAIN_MENU   "Options:\r\n" \
-                     "\t1. Toggle LD1 Green LED\r\n" \
-                     "\t2. Read USER BUTTON status\r\n" \
-                     "\t4. Print counters\r\n" \
-                     "\tqw. Pause/start sound\r\n" \
-                     "\t(. Use all mem\r\n" \
-                     "\t). Stack overflow\r\n" \
-                     "\t~. Print this message"
+                     "\t1.   Toggle RED LED\r\n" \
+                     "\t2/3. Read BTN1/2 status\r\n" \
+                     "\t4.   Print counters\r\n" \
+                     "\tqw.  Pause/start sound\r\n" \
+                     "\t(.   Use all mem\r\n" \
+                     "\t).   Stack overflow\r\n" \
+                     "\t~.   Print this message"
 #define PROMPT "\r\n> "
 #define NOTE_ON_START  "\x90\x3C\x40"
 #define NOTE_OFF_START "\x80\x3C\x40"
@@ -45,8 +48,8 @@ uint8_t NOTE_ON[] = NOTE_ON_START;
 uint8_t NOTE_OFF[] = NOTE_OFF_START;
 
 // From main.c
-extern UART_HandleTypeDef huart3;
-extern UART_HandleTypeDef huart6;
+extern UART_HandleTypeDef huart2; // Serial Console
+extern UART_HandleTypeDef huart1; // MIDI 1
 extern I2S_HandleTypeDef hi2s1;
 
 static uint32_t overrun_errors = 0;
@@ -125,9 +128,9 @@ void check_uart(USART_TypeDef *usart, ring_buffer_t *in_rb, ring_buffer_t *out_r
  */
 void check_io() {
   // Serial port
-  check_uart(huart3.Instance, &s_i_rb, &s_o_rb);
+  check_uart(huart2.Instance, &s_i_rb, &s_o_rb);
   // MIDI port
-  check_uart(huart6.Instance, &m_i_rb, &m_o_rb);
+  check_uart(huart1.Instance, &m_i_rb, &m_o_rb);
 }
 
 /** Queues data to be sent over our serial output. */
@@ -244,11 +247,18 @@ uint8_t process_user_input(uint8_t opt) {
 
   switch (opt) {
   case '1':
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
     break;
   case '2':
-    l = snprintf(msg, sizeof(msg) - 1, "\r\nUSER BUTTON status: %s",
-                  HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) != GPIO_PIN_RESET ? "PRESSED" : "RELEASED");
+    l = snprintf(msg, sizeof(msg) - 1, "\r\nBTN1 status: %s",
+                  // Button pressed pulls it down to 0
+                  HAL_GPIO_ReadPin(BTN1_GPIO_Port, BTN1_Pin) == GPIO_PIN_RESET ? "PRESSED" : "RELEASED");
+    serial_transmit((uint8_t*)msg, l);
+    break;
+  case '3':
+    l = snprintf(msg, sizeof(msg) - 1, "\r\nBTN2 status: %s",
+                  // Button pressed pulls it down to 0
+                  HAL_GPIO_ReadPin(BTN2_GPIO_Port, BTN2_Pin) == GPIO_PIN_RESET ? "PRESSED" : "RELEASED");
     serial_transmit((uint8_t*)msg, l);
     break;
   case '4':
@@ -491,7 +501,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   // SEE: https://github.com/micropython/micropython/issues/3375
 
 
-  if (huart == &huart3) {
+  if (huart == &huart2) {
     // Serial terminal via ST-Link
     usart3_interrupts++;
 
@@ -502,7 +512,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
       uart_error_callbacks++;
     }
 
-  } else if (huart == &huart6) {
+  } else if (huart == &huart1) {
     // MIDI
     if (huart->ErrorCode & HAL_UART_ERROR_ORE) {
       midi_overrun_errors++;
