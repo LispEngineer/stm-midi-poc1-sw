@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "realmain.h"
 
 /* USER CODE END Includes */
 
@@ -134,11 +135,29 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  // realmain(); // Leave pre-generated code and move to DPF's code
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    // SMOKE TEST
+    GPIO_PinState btn1, btn2;
+
+    btn1 = HAL_GPIO_ReadPin(BTN1_GPIO_Port, BTN1_Pin);
+    btn2 = HAL_GPIO_ReadPin(BTN2_GPIO_Port, BTN2_Pin);
+
+    HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+    if (btn1) {
+      HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+    }
+    if (btn2) {
+      // Blue LED was out of stock, so I got Yellow
+      HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+    }
+    HAL_Delay(250);
+
   }
   /* USER CODE END 3 */
 }
