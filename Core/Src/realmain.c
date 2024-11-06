@@ -48,8 +48,8 @@
 uint8_t NOTE_ON[] = NOTE_ON_START;
 uint8_t NOTE_OFF[] = NOTE_OFF_START;
 
-#define MIDI1_UART   huart3 // Swapped
-#define MIDI2_UART   huart1 // Swapped
+#define MIDI1_UART   huart6
+#define MIDI2_UART   huart1
 #define CONSOLE_UART huart2
 
 // From main.c

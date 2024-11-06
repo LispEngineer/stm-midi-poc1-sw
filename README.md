@@ -83,6 +83,15 @@ this functionality:
 
 * Only the Ground pin needs to be connected
   * The 3.3V pin does *not* need a connection
+  
+## USART6
+
+Connected this to `ubld.it` MIDI breakout:
+* RX -> Rx
+* TX -> Tx
+* Power/Ground
+
+MIDI in works fine.
 
 
 # EVT1 Hardware Problems Noted
@@ -106,6 +115,7 @@ Note one board is missing J5 so easy to differentiate.
 
 * MIDI In doesn't seem to be working on either port
   * TODO: Try both TRS-A or TRS-B
+  * Did I make an error in Rx & Tx?
 * Enabling/disabling audio mute while no sound is playing
   makes an audible clicking sound on headphone out
   * This is also audible on the line out
