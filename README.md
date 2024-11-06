@@ -44,15 +44,11 @@ this functionality:
   received
 * Output the tone to the Audio DAC used in this board
 
-## Adapatation
-
-* Change `hi2s3` to `hi2s1`
-
 # TODO
 
 * DONE Make the LED code toggle the LED on my board
 * DONE Make the button reading code read a button on my board
-* Transfer the memory map over
+* TODO Transfer the memory map over
 * DONE Set up the clocks
 * DONE Set up the UARTS
   * Console: 460,800, Overrun enable, DMA on RX Error enable
@@ -61,21 +57,29 @@ this functionality:
   * USARTx global interrupt (3, 6) with preemption priority (2, 3)
   * 3 bits for pre-emption
 * DONE Update the text/functionality
-* Set up the DMA
+* DONE? Set up the DMA
   * SPIx_TX -> DMA 1 Stream x (was 3, 5)
   * Circular to Memory
   * Half Word both ways
   * Global interrupt & preemption priority ("Force DMA channels interrupts")
-* Set up I2S
+* DONE? Set up I2S
   * Master Transmit
   * I2S Philips
   * 16 bits data on 16 bits frame
   * 32 KHz
   * Clock Polarity Low
-  
-  
+
   
 # EVT1 Problems Noted
 
+Problems exist on both assembled boards.
+Note one board is missing J5 so easy to differentiate
+
 * Console is USART2
   * Nucleo boards use UART3 (oops!)
+  * (But note the console UART works)
+* MIDI In doesn't seem to be working on either port
+  * TODO: Try both TRS-A or TRS-B
+* Enabling/disabling I2S turns on/off the Green LED (!)
+  using the q/w keys
+* I2S sound doesn't seem to be working (on headphone out anyway)

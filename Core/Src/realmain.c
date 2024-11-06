@@ -29,12 +29,12 @@
 #define FAST_BSS
 #define FAST_DATA
 
-#define WELCOME_MSG "Doug's MIDI console v7\r\n"
-#define MAIN_MENU   "Options:\r\n" \
-                     "\t1.   Toggle RED LED\r\n" \
+#define WELCOME_MSG "Doug's MIDI v8\r\n"
+#define MAIN_MENU   "\t156. Toggle R/G/B LED\r\n" \
                      "\t2/3. Read BTN1/2 status\r\n" \
                      "\t4.   Print counters\r\n" \
                      "\tqw.  Pause/start sound\r\n" \
+                     "\ter.  Start/stop tone gen\r\n" \
                      "\t(.   Use all mem\r\n" \
                      "\t).   Stack overflow\r\n" \
                      "\t~.   Print this message"
@@ -47,9 +47,13 @@
 uint8_t NOTE_ON[] = NOTE_ON_START;
 uint8_t NOTE_OFF[] = NOTE_OFF_START;
 
+#define MIDI1_UART   huart3 // Swapped
+#define MIDI2_UART   huart1 // Swapped
+#define CONSOLE_UART huart2
+
 // From main.c
-extern UART_HandleTypeDef huart2; // Serial Console
-extern UART_HandleTypeDef huart1; // MIDI 1
+extern UART_HandleTypeDef CONSOLE_UART; // Serial Console
+extern UART_HandleTypeDef MIDI1_UART; // MIDI 1
 extern I2S_HandleTypeDef hi2s1;
 
 static uint32_t overrun_errors = 0;
@@ -128,9 +132,9 @@ void check_uart(USART_TypeDef *usart, ring_buffer_t *in_rb, ring_buffer_t *out_r
  */
 void check_io() {
   // Serial port
-  check_uart(huart2.Instance, &s_i_rb, &s_o_rb);
+  check_uart(CONSOLE_UART.Instance, &s_i_rb, &s_o_rb);
   // MIDI port
-  check_uart(huart1.Instance, &m_i_rb, &m_o_rb);
+  check_uart(MIDI1_UART.Instance, &m_i_rb, &m_o_rb);
 }
 
 /** Queues data to be sent over our serial output. */
@@ -268,6 +272,12 @@ uint8_t process_user_input(uint8_t opt) {
     l = snprintf(msg, sizeof(msg) - 1, "LPT: %lu\r\n", loops_per_tick);
     serial_transmit((uint8_t*)msg, l);
     break;
+  case '5':
+    HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+    break;
+  case '6':
+    HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+    break;
   case 'q':
     // (+) Pause the DMA Transfer using HAL_I2S_DMAPause()
     HAL_I2S_DMAPause(&hi2s1);
@@ -275,6 +285,14 @@ uint8_t process_user_input(uint8_t opt) {
   case 'w':
     // (+) Resume the DMA Transfer using HAL_I2S_DMAResume()
     HAL_I2S_DMAResume(&hi2s1);
+    break;
+  case 'e':
+    // Start a tone
+    tonegen_set(&tonegen1, 262, 25000);
+    break;
+  case 'r':
+    // Stop tone
+    tonegen_set(&tonegen1, 262, 0);
     break;
   case '(':
     // Use all memory
@@ -424,15 +442,12 @@ void realmain() {
   uint32_t last_tick = HAL_GetTick();
   uint32_t tick_counter = 0;
 
-  // test_i2s();
-
   init_ring_buffers();
   init_midi_buffers();
   tonegen_init(&tonegen1, 32000);
   tonegen_set(&tonegen1, 1024, 0); // Frequency, Amplitude
 
   // Start the DMA streams for I²S
-  // HAL_I2S_Transmit_DMA(&hi2s1, triangle_wave, sizeof(triangle_wave) / sizeof(triangle_wave[0]));
   HAL_I2S_Transmit_DMA(&hi2s1, (uint16_t *)i2s_buff, I2S_BUFFER_SIZE);
 
   printMessage:
@@ -501,7 +516,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   // SEE: https://github.com/micropython/micropython/issues/3375
 
 
-  if (huart == &huart2) {
+  if (huart == &CONSOLE_UART) {
     // Serial terminal via ST-Link
     usart3_interrupts++;
 
@@ -512,7 +527,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
       uart_error_callbacks++;
     }
 
-  } else if (huart == &huart1) {
+  } else if (huart == &MIDI1_UART) {
     // MIDI
     if (huart->ErrorCode & HAL_UART_ERROR_ORE) {
       midi_overrun_errors++;
