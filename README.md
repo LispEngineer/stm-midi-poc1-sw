@@ -69,17 +69,45 @@ this functionality:
   * 32 KHz
   * Clock Polarity Low
 
+# Hardware Notes
+
+## Serial console
+
+* Only the Ground pin needs to be connected
+  * The 3.3V pin does *not* need a connection
+
   
 # EVT1 Problems Noted
 
 Problems exist on both assembled boards.
-Note one board is missing J5 so easy to differentiate
+Note one board is missing J5 so easy to differentiate.
+
+## Tests remaining
+
+* MIDI Out
+* I2C
+* SPI
+* GPIO
+* The other serial ports
+
+## P0
+
+* MIDI In doesn't seem to be working on either port
+  * TODO: Try both TRS-A or TRS-B
+* Enabling/disabling audio mute while no sound is playing
+  makes an audible clicking sound on headphone out
+  * This is also audible on the line out
+  * It does not occur when I2S audio out is stopped
+
+## P1
 
 * Console is USART2
   * Nucleo boards use UART3 (oops!)
   * (But note the console UART works)
-* MIDI In doesn't seem to be working on either port
-  * TODO: Try both TRS-A or TRS-B
-* Enabling/disabling I2S turns on/off the Green LED (!)
+
+## Fixed
+
+* FIXED: Enabling/disabling I2S turns on/off the Green LED (!)
   using the q/w keys
   * I2S sound works (if you use the audio mute signal to enable output)
+  * Turns out the code was flashing this LED when filling I2S buffer

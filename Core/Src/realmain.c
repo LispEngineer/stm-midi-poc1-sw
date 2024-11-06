@@ -376,8 +376,6 @@ void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
 void fill_i2s_data() {
   int16_t *next_sample_loc = (int16_t *)i2s_buff_write; // Remove volatility
 
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1); // Red LED
-
   for (int i = 0; i < I2S_BUFFER_SIZE / 2; i++) {
     *next_sample_loc = tonegen_next_sample(&tonegen1);
     next_sample_loc++;
@@ -387,7 +385,6 @@ void fill_i2s_data() {
   // while we're doing this? Should we set the flag to 0 at the
   // very start?
   i2s_write_available = 0;
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 0); // Red LED
 }
 
 ///////////////////////////////////////////////////////////////////////////////
