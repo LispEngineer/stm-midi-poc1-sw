@@ -51,11 +51,12 @@ uint8_t NOTE_OFF[] = NOTE_OFF_START;
 #define MIDI1_UART   huart1 // huart6 works with ubld.it
 #define MIDI2_UART   huart3
 #define CONSOLE_UART huart2
+#define SOUND1       hi2s1
 
 // From main.c
 extern UART_HandleTypeDef CONSOLE_UART; // Serial Console
 extern UART_HandleTypeDef MIDI1_UART; // MIDI 1
-extern I2S_HandleTypeDef hi2s1;
+extern I2S_HandleTypeDef SOUND1;
 
 static uint32_t overrun_errors = 0;
 static uint32_t uart_error_callbacks = 0;
@@ -284,11 +285,11 @@ uint8_t process_user_input(uint8_t opt) {
     break;
   case 'q':
     // (+) Pause the DMA Transfer using HAL_I2S_DMAPause()
-    HAL_I2S_DMAPause(&hi2s1);
+    HAL_I2S_DMAPause(&SOUND1);
     break;
   case 'w':
     // (+) Resume the DMA Transfer using HAL_I2S_DMAResume()
-    HAL_I2S_DMAResume(&hi2s1);
+    HAL_I2S_DMAResume(&SOUND1);
     break;
   case 'e':
     // Start a tone
@@ -449,7 +450,7 @@ void realmain() {
   tonegen_set(&tonegen1, 1024, 0); // Frequency, Amplitude
 
   // Start the DMA streams for I²S
-  HAL_I2S_Transmit_DMA(&hi2s1, (uint16_t *)i2s_buff, I2S_BUFFER_SIZE);
+  HAL_I2S_Transmit_DMA(&SOUND1, (uint16_t *)i2s_buff, I2S_BUFFER_SIZE);
 
   printMessage:
   printWelcomeMessage();

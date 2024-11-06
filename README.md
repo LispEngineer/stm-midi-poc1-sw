@@ -77,10 +77,11 @@ this functionality:
   * Clock Polarity Low
 
 
-# Hardware Notes
+# EVT1 Hardware Test Notes
 
 ## Serial console
 
+* Works
 * Only the Ground pin needs to be connected
   * The 3.3V pin does *not* need a connection
   
@@ -91,7 +92,25 @@ Connected this to `ubld.it` MIDI breakout:
 * TX -> Tx
 * Power/Ground
 
-MIDI in works fine.
+Configured as such, MIDI in works fine.
+
+## MIDI
+
+
+### MIDI In
+
+`sendmidi dev "U2MIDI Pro" on 64 100 +00:00:00.200 off 64 100`
+
+* MIDI 1 and 2 IN (UARTs 1 & 3) work
+  * WHEN REWIRED externally - see problems below
+
+### MIDI Out
+
+
+## LEDs and Buttons
+
+* All work
+
 
 
 # EVT1 Hardware Problems Noted
@@ -115,8 +134,12 @@ Note one board is missing J5 so easy to differentiate.
 ## P0
 
 * MIDI In doesn't seem to be working on either port
-  * TODO: Try both TRS-A or TRS-B
-  * Did I make an error in Rx & Tx?
+  * I miswired the Audio Jack
+    * [See Helpful Page](https://www.sameskydevices.com/blog/understanding-audio-jack-switches-and-schematics)
+    * I got the tip and sleeve reversed
+    * Using a patch cable to swap them makes the MIDI 1 work fine
+  * This was fixed in EVT2 of the hardware
+    
 * Enabling/disabling audio mute while no sound is playing
   makes an audible clicking sound on headphone out
   * This is also audible on the line out
@@ -136,10 +159,3 @@ Note one board is missing J5 so easy to differentiate.
   * Turns out the code was flashing this LED when filling I2S buffer
   
 ## Debugging Notes
-
-* USART1
-  * Try TX/RX pin swapping - did not help
-  * Try active level inversion - did not help
-  * Try data inversion - did not help
-  * None of these options singly or in any combination worked
-    * Therefore, I must have messed up the hardware or schematic
