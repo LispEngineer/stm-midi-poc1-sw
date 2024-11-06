@@ -82,4 +82,4 @@ Note one board is missing J5 so easy to differentiate
   * TODO: Try both TRS-A or TRS-B
 * Enabling/disabling I2S turns on/off the Green LED (!)
   using the q/w keys
-* I2S sound doesn't seem to be working (on headphone out anyway)
+  * I2S sound works (if you use the audio mute signal to enable output)

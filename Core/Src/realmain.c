@@ -29,12 +29,13 @@
 #define FAST_BSS
 #define FAST_DATA
 
-#define WELCOME_MSG "Doug's MIDI v8\r\n"
+#define WELCOME_MSG "Doug's MIDI v9\r\n"
 #define MAIN_MENU   "\t156. Toggle R/G/B LED\r\n" \
-                     "\t2/3. Read BTN1/2 status\r\n" \
-                     "\t4.   Print counters\r\n" \
+                     "\t2/3. Read BTN1/2\r\n" \
+                     "\t4.   Counters\r\n" \
                      "\tqw.  Pause/start sound\r\n" \
-                     "\ter.  Start/stop tone gen\r\n" \
+                     "\ter.  Start/stop tone\r\n" \
+                     "\ta.   Toggle audio mute\r\n" \
                      "\t(.   Use all mem\r\n" \
                      "\t).   Stack overflow\r\n" \
                      "\t~.   Print this message"
@@ -76,7 +77,7 @@ FAST_BSS ring_buffer_t m_o_rb;
 FAST_BSS midi_stream midi_stream_0;
 
 // Test Fast Data
-FAST_DATA char test_fast_string[] = "This is a fast string test.";
+FAST_DATA char test_fast_string[] = "Fast string!";
 FAST_DATA size_t tfs_len = sizeof(test_fast_string) - 1;
 
 // Tone Generator
@@ -277,6 +278,9 @@ uint8_t process_user_input(uint8_t opt) {
     break;
   case '6':
     HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+    break;
+  case 'a':
+    HAL_GPIO_TogglePin(AUDIO_MUTE_GPIO_Port, AUDIO_MUTE_Pin);
     break;
   case 'q':
     // (+) Pause the DMA Transfer using HAL_I2S_DMAPause()
