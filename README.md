@@ -107,6 +107,7 @@ Note one board is missing J5 so easy to differentiate.
 * GPIO
 * The other serial ports
   * Test MIDI with a `ubld.it` MIDI breakout
+  * USART6 RX has been tested
 * RTC
 * Master clock output
 * Wakeup
@@ -133,3 +134,12 @@ Note one board is missing J5 so easy to differentiate.
   using the q/w keys
   * I2S sound works (if you use the audio mute signal to enable output)
   * Turns out the code was flashing this LED when filling I2S buffer
+  
+## Debugging Notes
+
+* USART1
+  * Try TX/RX pin swapping - did not help
+  * Try active level inversion - did not help
+  * Try data inversion - did not help
+  * None of these options singly or in any combination worked
+    * Therefore, I must have messed up the hardware or schematic
