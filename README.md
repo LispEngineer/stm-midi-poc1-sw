@@ -33,6 +33,7 @@ Hardware:
 Pinout:
 * See [`pinout-with-alternates.csv`](pinout-with-alternates.csv)
 
+
 # Software
 
 The software is adapted from my project
@@ -44,11 +45,17 @@ this functionality:
   received
 * Output the tone to the Audio DAC used in this board
 
+
 # TODO
+
+* TODO Transfer the memory map over for all the 
+  different memory areas
+  * And the BSS/Data section initializers
+
+## DONE
 
 * DONE Make the LED code toggle the LED on my board
 * DONE Make the button reading code read a button on my board
-* TODO Transfer the memory map over
 * DONE Set up the clocks
 * DONE Set up the UARTS
   * Console: 460,800, Overrun enable, DMA on RX Error enable
@@ -57,17 +64,18 @@ this functionality:
   * USARTx global interrupt (3, 6) with preemption priority (2, 3)
   * 3 bits for pre-emption
 * DONE Update the text/functionality
-* DONE? Set up the DMA
+* DONE Set up the DMA
   * SPIx_TX -> DMA 1 Stream x (was 3, 5)
   * Circular to Memory
   * Half Word both ways
   * Global interrupt & preemption priority ("Force DMA channels interrupts")
-* DONE? Set up I2S
+* DONE Set up I2S
   * Master Transmit
   * I2S Philips
   * 16 bits data on 16 bits frame
   * 32 KHz
   * Clock Polarity Low
+
 
 # Hardware Notes
 
@@ -76,10 +84,10 @@ this functionality:
 * Only the Ground pin needs to be connected
   * The 3.3V pin does *not* need a connection
 
-  
-# EVT1 Problems Noted
 
-Problems exist on both assembled boards.
+# EVT1 Hardware Problems Noted
+
+Problems noted exist on both assembled boards.
 Note one board is missing J5 so easy to differentiate.
 
 ## Tests remaining
@@ -89,6 +97,10 @@ Note one board is missing J5 so easy to differentiate.
 * SPI
 * GPIO
 * The other serial ports
+  * Test MIDI with a `ubld.it` MIDI breakout
+* RTC
+* Master clock output
+* Wakeup
 
 ## P0
 
