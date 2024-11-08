@@ -5,7 +5,7 @@
  * auto-generated.
  *
  *  Created on: 2024-08-25
- *  Updated on: 2024-11-05
+ *  Updated on: 2024-11-07
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -29,27 +29,30 @@
 #define FAST_BSS
 #define FAST_DATA
 
-#define WELCOME_MSG "Doug's MIDI v9\r\n"
+#define WELCOME_MSG "Doug's MIDI v10\r\n"
 #define MAIN_MENU   "\t156. Toggle R/G/B LED\r\n" \
                      "\t2/3. Read BTN1/2\r\n" \
                      "\t4.   Counters\r\n" \
-                     "\tqw.  Pause/start sound\r\n" \
+                     "\tqw.  Pause/start I2S\r\n" \
                      "\ter.  Start/stop tone\r\n" \
-                     "\ta.   Toggle audio mute\r\n" \
-                     "\t(.   Use all mem\r\n" \
-                     "\t).   Stack overflow\r\n" \
-                     "\t~.   Print this message"
+                     "\tdf.  Send note on/off\r\n" \
+                     "\ta.   Audio mute\r\n" \
+                     "\t(.   Mem\r\n" \
+                     "\t).   Stack\r\n" \
+                     "\t~.   Menu"
 #define PROMPT "\r\n> "
 #define NOTE_ON_START  "\x90\x3C\x40"
+#define NOTE_ON_START_LEN 3
 #define NOTE_OFF_START "\x80\x3C\x40"
+#define NOTE_OFF_START_LEN 3
 
 #define I2S_BUFFER_SIZE 128
 
-uint8_t NOTE_ON[] = NOTE_ON_START;
-uint8_t NOTE_OFF[] = NOTE_OFF_START;
+const uint8_t NOTE_ON[] = NOTE_ON_START;
+const uint8_t NOTE_OFF[] = NOTE_OFF_START;
 
-#define MIDI1_UART   huart1 // huart6 works with ubld.it
-#define MIDI2_UART   huart3
+#define MIDI1_UART   huart3 // huart6 works with ubld.it & my TLP2362/ISOM8710 circuits
+#define MIDI2_UART   huart1
 #define CONSOLE_UART huart2
 #define SOUND1       hi2s1
 
@@ -298,6 +301,14 @@ uint8_t process_user_input(uint8_t opt) {
   case 'r':
     // Stop tone
     tonegen_set(&tonegen1, 262, 0);
+    break;
+  case 'd':
+    // Send note on
+    midi_transmit(NOTE_ON, NOTE_ON_START_LEN);
+    break;
+  case 'f':
+    // Send note off
+    midi_transmit(NOTE_OFF, NOTE_OFF_START_LEN);
     break;
   case '(':
     // Use all memory

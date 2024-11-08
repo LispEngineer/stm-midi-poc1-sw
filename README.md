@@ -106,6 +106,10 @@ Configured as such, MIDI in works fine.
 
 ### MIDI Out
 
+`receivemidi dev MidiView`
+
+* MIDI 1 & 2 OUT work
+  * When rewired externally - see problems below
 
 ## LEDs and Buttons
 
@@ -120,7 +124,6 @@ Note one board is missing J5 so easy to differentiate.
 
 ## Tests remaining
 
-* MIDI Out
 * I2C
 * SPI
 * GPIO
