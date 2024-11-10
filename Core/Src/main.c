@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "realmain.h"
+#include "spimain.h"
 
 /* USER CODE END Includes */
 
@@ -145,6 +146,9 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  spimain(); // Test SPI
+
   realmain(); // Leave pre-generated code and move to DPF's code
 
   while (1)
@@ -250,7 +254,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x20404768;
+  hi2c1.Init.Timing = 0x00303D5B;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -298,7 +302,7 @@ static void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  hi2c2.Init.Timing = 0x20404768;
+  hi2c2.Init.Timing = 0xA0404E72;
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -417,7 +421,7 @@ static void MX_SPI2_Init(void)
   hspi2.Instance = SPI2;
   hspi2.Init.Mode = SPI_MODE_MASTER;
   hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
@@ -720,10 +724,10 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, AUDIO_MUTE_Pin|GPIO_PB1_Pin|LED_BLUE_Pin|LED_GREEN_Pin
-                          |LED_RED_Pin, GPIO_PIN_RESET);
+                          |LED_RED_Pin|GPIO_PB5_SPI2_RESET_Pin|GPIO_PB8_SPI2_DC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIO_PA15_GPIO_Port, GPIO_PA15_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIO_PA15_SPI2_CS_GPIO_Port, GPIO_PA15_SPI2_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : GPIO_PC0_Pin GPIO_PC3_Pin GPIO_PC8_Pin GPIO_PC9_Pin */
   GPIO_InitStruct.Pin = GPIO_PC0_Pin|GPIO_PC3_Pin|GPIO_PC8_Pin|GPIO_PC9_Pin;
@@ -738,18 +742,16 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIO_PA6_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : AUDIO_MUTE_Pin GPIO_PB1_Pin LED_BLUE_Pin LED_GREEN_Pin
-                           LED_RED_Pin */
+                           LED_RED_Pin GPIO_PB5_SPI2_RESET_Pin GPIO_PB8_SPI2_DC_Pin */
   GPIO_InitStruct.Pin = AUDIO_MUTE_Pin|GPIO_PB1_Pin|LED_BLUE_Pin|LED_GREEN_Pin
-                          |LED_RED_Pin;
+                          |LED_RED_Pin|GPIO_PB5_SPI2_RESET_Pin|GPIO_PB8_SPI2_DC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : GPIO_PB2_Pin BTN2_Pin BTN1_Pin GPIO_PB5_Pin
-                           GPIO_PB8_Pin GPIO_PB9_Pin */
-  GPIO_InitStruct.Pin = GPIO_PB2_Pin|BTN2_Pin|BTN1_Pin|GPIO_PB5_Pin
-                          |GPIO_PB8_Pin|GPIO_PB9_Pin;
+  /*Configure GPIO pins : GPIO_PB2_Pin BTN2_Pin BTN1_Pin GPIO_PB9_Pin */
+  GPIO_InitStruct.Pin = GPIO_PB2_Pin|BTN2_Pin|BTN1_Pin|GPIO_PB9_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -762,12 +764,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF0_MCO;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : GPIO_PA15_Pin */
-  GPIO_InitStruct.Pin = GPIO_PA15_Pin;
+  /*Configure GPIO pin : GPIO_PA15_SPI2_CS_Pin */
+  GPIO_InitStruct.Pin = GPIO_PA15_SPI2_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIO_PA15_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIO_PA15_SPI2_CS_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

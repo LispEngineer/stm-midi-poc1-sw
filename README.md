@@ -3,17 +3,33 @@
 * Author: [Douglas P. Fields, Jr.](mailto:symbolics@lisp.engineer)
 * Copyright 2024, Douglas P. Fields Jr.
 * License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt)
+* Last updated: 2024-11-10
 * [Repo Self-Link](https://github.com/LispEngineer/stm-midi-poc1-sw)
+* Portions used under other licenses
+  * SPI Display - MIT License
+  * STM Software / Generated Code - Delegated to LICENSE file, hence
+    Apache 2.0
 
 Software for my 
 [STM32 MIDI Synthesizer PoC 1](https://github.com/LispEngineer/stm-midi-poc1).
 
-Software:
+
+# Credits
+
+* [SPI Display Software](https://github.com/afiskon/stm32-ili9341) 
+  by Aleksander Alekseev under [MIT License](https://opensource.org/license/mit)
+  * As enhanced by [my project](https://github.com/LispEngineer/stm-f7-spi-display)
+
+
+# Software
+
 * Windows 11
 * STM32CubeIDE
 * STM32 HAL libraries
 
-Hardware:
+
+# Hardware
+
 * STM32F722RET6
   * [STM32F7x2 Overview](https://www.st.com/en/microcontrollers-microprocessors/stm32f7x2.html)
   * [STM32F722RE Page](https://www.st.com/en/microcontrollers-microprocessors/stm32f722re.html)
@@ -26,15 +42,43 @@ Hardware:
   * DAC: [PCM5102A](TODO)
   * Amplifier: [PAM8908JER](TODO)
 * MIDI in/out
-  * Opto-isolator: [6N137S-TA1](TODO)
+  * Opto-isolator: 
+    * EVT1: [6N137S-TA1](TODO)
+    * EVT2: [TLP2362](TODO) - much smaller
 * Power: USB-C
-* Programming: SWD (with 5-pin header)
+* Programming: SWD (with 5-pin header, no SWO)
 
-Pinout:
-* See [`pinout-with-alternates.csv`](pinout-with-alternates.csv)
+External hardware:
+* USB Console: Inland FT232 TTL UART to USB board
+  * [Similar to this one](https://www.ebay.com/itm/142909573493)
+* SPI Display: [PJRC ILI9341](https://www.pjrc.com/store/display_ili9341_touch.html)
 
 
-# Software
+
+# Pinout
+
+See [`pinout-with-alternates.csv`](pinout-with-alternates.csv).
+This was generated in the IOC editor,
+Pinout & Configuration →
+Pinout →
+Export Pintout with Alt. Functions.
+
+## SPI 
+
+GPIO Pins
+* CS (Chip Select) - PA15
+* DC (Data or Command) - PB8
+* RESET - PB5
+
+Power (for PJRC ILI9341 Display)
+* VCC - 3.3V (works despite spec sheet saying 3.6-5.5V)
+* GND - GND
+* LED - 3.3V
+
+SPI MISO/MOSI/CLK - wired directly to SPI2 header
+
+
+# Functionality
 
 The software is adapted from my project
 [Nucleo UART](https://github.com/LispEngineer/nucleo-uart), which has
@@ -44,6 +88,7 @@ this functionality:
 * Create a single triangle wave tone based on last note on
   received
 * Output the tone to the Audio DAC used in this board
+* Display on the PJRC ILI9341 SPI display
 
 
 # TODO
@@ -96,7 +141,6 @@ Configured as such, MIDI in works fine.
 
 ## MIDI
 
-
 ### MIDI In
 
 `sendmidi dev "U2MIDI Pro" on 64 100 +00:00:00.200 off 64 100`
@@ -114,7 +158,6 @@ Configured as such, MIDI in works fine.
 ## LEDs and Buttons
 
 * All work
-
 
 
 # EVT1 Hardware Problems Noted
@@ -154,11 +197,4 @@ Note one board is missing J5 so easy to differentiate.
   * Nucleo boards use UART3 (oops!)
   * (But note the console UART works)
 
-## Fixed
-
-* FIXED: Enabling/disabling I2S turns on/off the Green LED (!)
-  using the q/w keys
-  * I2S sound works (if you use the audio mute signal to enable output)
-  * Turns out the code was flashing this LED when filling I2S buffer
-  
 ## Debugging Notes
