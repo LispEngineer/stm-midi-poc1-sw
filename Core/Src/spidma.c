@@ -22,10 +22,124 @@
  * * Thread safety
  *
  *  Created on: 2024-11-11
- *  Updated on: 2024-11-11
- *      Author: Douglas P. Fields, Jr.
+ *  Updated on: 2024-11-12
+ *      Author: Douglas P. Fields, Jr. - symbolics@lisp.engineer
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
  */
 
+#include "stm32f7xx_hal.h"
+#include "spidma.h"
 
+
+/** Initialize the DMA transfers and the
+ * state of the SPI pins
+ */
+void spidma_init(spidma_config_t *);
+
+/** Set the chip select for this SPI device
+ * (active low).
+ */
+inline void spidma_select(spidma_config_t *spi) {
+  if (spi->use_cs) {
+    HAL_GPIO_WritePin(spi->bank_cs, spi->pin_cs, GPIO_PIN_RESET);
+  }
+}
+
+/** Reset the chip select for this SPI device
+ * (inactive high).
+ */
+inline void spidma_deselect(spidma_config_t *spi) {
+  if (spi->use_cs) {
+    HAL_GPIO_WritePin(spi->bank_cs, spi->pin_cs, GPIO_PIN_SET);
+  }
+}
+
+/** Assert the reset pin for this SPI device
+ * (active low).
+ */
+inline void spidma_reset(spidma_config_t *spi) {
+  if (spi->use_reset) {
+    HAL_GPIO_WritePin(spi->bank_reset, spi->pin_reset, GPIO_PIN_RESET);
+  }
+}
+
+/** Clear the reset pin for this SPI device
+ * (inactive high).
+ */
+inline void spidma_dereset(spidma_config_t *spi) {
+  if (spi->use_reset) {
+    HAL_GPIO_WritePin(spi->bank_reset, spi->pin_reset, GPIO_PIN_SET);
+  }
+}
+
+/** Returns non-zero if DMA channel is sending data now. */
+inline uint32_t spidma_is_dma_busy(spidma_config_t *spi) {
+  return 0;
+}
+
+/** Send a buffer of data over the SPI connection via DMA.
+ *
+ * This is a low-level routine and just starts the DMA transfer.
+ *
+ * NOTE: This can only be called when the DMA is not
+ * transmitting anything.
+ *
+ * NOTE: The maximum size that can be sent is 65,535.
+ *
+ * Return value:
+ * 0 - everything good
+ * 1 - size too big
+ * 2 - DMA in use
+ * non-zero - other errors
+ */
+uint32_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
+  if (buff_size > 65535) {
+    return 1U;
+  }
+
+  // TODO: Check if DMA is in use
+  if (0) {
+    // Oops, DMA is in use
+    return 2U;
+  }
+
+  // TODO: Start a DMA transfer
+  return 0xFFFFFFFF;
+}
+
+/** This asserts the command signal and then sends the specified data
+ * using spidma_write().
+ */
+uint32_t spidma_write_command(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
+  // TODO: Check if DMA is in use
+  if (0) {
+    return 2;
+  }
+
+  HAL_GPIO_WritePin(spi->bank_dc, spi->pin_dc, GPIO_PIN_RESET);
+  return spidma_write(spi, buff, buff_size);
+}
+
+
+/** This asserts the data signal and then sends the specified data
+ * using spidma_write().
+ */
+uint32_t spidma_write_data(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
+  // TODO: Check if DMA is in use
+  if (0) {
+    return 2;
+  }
+
+  HAL_GPIO_WritePin(spi->bank_dc, spi->pin_dc, GPIO_PIN_SET);
+  return spidma_write(spi, buff, buff_size);
+}
+
+/** This does a busy wait, waiting for any DMA transfer
+ * on the SPI channel to complete.
+ *
+ * TODO: Add a max timeout
+ */
+void spidma_wait_for_completion(spidma_config_t *) {
+  // TODO: CODE ME
+}
