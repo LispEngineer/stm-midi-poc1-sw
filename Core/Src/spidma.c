@@ -36,7 +36,7 @@
 
 extern UART_HandleTypeDef huart2;
 
-static void dma_transfer_complete(DMA_HandleTypeDef *hdma) {
+static void spi_transfer_complete(SPI_HandleTypeDef *hdma) {
   HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
   HAL_UART_Transmit(&huart2, (uint8_t *)"+", 1, HAL_MAX_DELAY);
 }
@@ -50,7 +50,8 @@ void spidma_init(spidma_config_t *spi) {
 
   // Register the DMA complete callback
   // HAL_SPI_Register
-  HAL_DMA_RegisterCallback(spi->dma_tx, HAL_DMA_XFER_M1CPLT_CB_ID /* HAL_DMA_XFER_CPLT_CB_ID */, dma_transfer_complete);
+  // HAL_DMA_RegisterCallback(spi->dma_tx, HAL_DMA_XFER_M1CPLT_CB_ID /* HAL_DMA_XFER_CPLT_CB_ID */, dma_transfer_complete);
+  HAL_SPI_RegisterCallback(spi->spi, HAL_SPI_TX_COMPLETE_CB_ID, spi_transfer_complete);
 }
 
 /** Set the chip select for this SPI device

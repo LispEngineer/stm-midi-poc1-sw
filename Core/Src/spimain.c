@@ -47,6 +47,8 @@ static void init() {
 }
 
 static void loop() {
+  // Not sure why the original demo code kept DeInit/Init'ing the SPI
+  /*
     if(HAL_SPI_DeInit(&ILI9341_SPI_PORT) != HAL_OK) {
         UART_Printf("HAL_SPI_DeInit failed 1!\r\n");
         return;
@@ -58,6 +60,7 @@ static void loop() {
         UART_Printf("HAL_SPI_Init failed 1!\r\n");
         return;
     }
+    */
 
     // Check border
     ILI9341_FillScreen(ILI9341_BLACK);
@@ -132,6 +135,8 @@ static void loop() {
     ILI9341_FillScreen(ILI9341_BLACK);
 #endif
 
+    // Not sure why the original demo code kept DeInit/Init'ing the SPI
+    /*
     if(HAL_SPI_DeInit(&ILI9341_SPI_PORT) != HAL_OK) {
         UART_Printf("HAL_SPI_DeInit failed 2!\r\n");
         return;
@@ -143,6 +148,7 @@ static void loop() {
         UART_Printf("HAL_SPI_Init failed 2!\r\n");
         return;
     }
+    */
 
 #ifdef INCLUDE_TOUCH
     int npoints = 0;
