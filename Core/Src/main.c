@@ -64,12 +64,13 @@ UART_HandleTypeDef huart6;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-spidma_config_t spi2tx;
-
 /* USER CODE BEGIN PV */
 
 // huart1 = MIDI 1
-// huart3 = Serial Console
+// huart2 = Serial Console
+
+// Our SPI interface structure
+spidma_config_t spi2tx;
 
 /* USER CODE END PV */
 
