@@ -11,8 +11,8 @@
 #ifndef INC_SPIDMA_H_
 #define INC_SPIDMA_H_
 
-#define NUM_SPI_ENTRIES ((size_t)32)   // This must be a power of two
-#define SPI_ENTRY_MASK  ((size_t)0x1F) // A mask of the number of bits to hold the value above from 0 to that minus 1
+#define NUM_SPI_ENTRIES ((size_t)64)   // This must be a power of two
+#define SPI_ENTRY_MASK  ((size_t)0x3F) // A mask of the number of bits to hold the value above from 0 to that minus 1
 typedef uint16_t spiq_size_t;
 
 typedef enum spidma_entry_type {

@@ -46,6 +46,181 @@ static void init() {
     ILI9341_Init();
 }
 
+uint8_t init_0[]   = { 0x01 }; // Command SOFTWARE RESET
+uint8_t init_1[]   = { 0xCB }; // Command POWER CONTROL A
+uint8_t init_1d[]  = { 0x39, 0x2C, 0x00, 0x34, 0x02 }; // Data for above
+uint8_t init_2[]   = { 0xCF }; // POWER CONTROL B
+uint8_t init_2d[]  = { 0x00, 0xC1, 0x30 };
+uint8_t init_3[]   = { 0xE8 }; // DRIVER TIMING CONTROL A
+uint8_t init_3d[]  = { 0x85, 0x00, 0x78 };
+uint8_t init_4[]   = { 0xEA }; // DRIVER TIMING CONTROL B
+uint8_t init_4d[]  = { 0x00, 0x00 };
+uint8_t init_5[]   = { 0xED }; // POWER ON SEQUENCE CONTROL
+uint8_t init_5d[]  = { 0x64, 0x03, 0x12, 0x81 };
+uint8_t init_6[]   = { 0xF7 }; // PUMP RATIO CONTROL
+uint8_t init_6d[]  = { 0x20 };
+uint8_t init_7[]   = { 0xC0 }; // POWER CONTROL,VRH[5:0]
+uint8_t init_7d[]  = { 0x23 };
+uint8_t init_8[]   = { 0xC1 }; // POWER CONTROL,SAP[2:0];BT[3:0
+uint8_t init_8d[]  = { 0x10 };
+uint8_t init_9[]   = { 0xC5 }; // VCM CONTROL
+uint8_t init_9d[]  = { 0x3E, 0x28 };
+uint8_t init_[]   = {  };
+uint8_t init_d[]  = {  };
+uint8_t init_[]   = {  };
+uint8_t init_d[]  = {  };
+uint8_t init_[]   = {  };
+uint8_t init_d[]  = {  };
+uint8_t init_[]   = {  };
+uint8_t init_d[]  = {  };
+
+
+static void spidma_ili9341_init() {
+  // Queue all the commands to do a full reset
+  spidma_queue(DISPLAY_SPI, SPIDMA_DESELECT, 0, 0, 100);
+  spidma_queue(DISPLAY_SPI, SPIDMA_SELECT, 0, 0, 200);
+
+  spidma_queue(DISPLAY_SPI, SPIDMA_RESET, 0, 0, 300);
+  spidma_queue(DISPLAY_SPI, SPIDMA_DELAY, 5 + 1, 0, 400); // Wait 5 milliseconds
+  spidma_queue(DISPLAY_SPI, SPIDMA_UNRESET, 0, 0, 500);
+
+  // Display initialization based upon https://github.com/afiskon/stm32-ili9341
+
+  // SOFTWARE RESET
+  spidma_queue(DISPLAY_SPI, SPIDMA_COMMAND, sizeof(init_0), init_0, 600);
+  spidma_queue(DISPLAY_SPI, SPIDMA_DELAY, 1000 + 1, 0, 700); // Wait 1000 milliseconds
+
+  // POWER CONTROL A
+  spidma_queue(DISPLAY_SPI, SPIDMA_COMMAND, sizeof(init_1), init_1, 800);
+  spidma_queue(DISPLAY_SPI, SPIDMA_DATA, sizeof(init_1d), init_1d, 900);
+
+  // POWER CONTROL B
+  spidma_queue(DISPLAY_SPI, SPIDMA_COMMAND, sizeof(init_2), init_2, 1000);
+  spidma_queue(DISPLAY_SPI, SPIDMA_DATA, sizeof(init_2d), init_2d, 1100);
+
+  // DRIVER TIMING CONTROL A
+  spidma_queue(DISPLAY_SPI, SPIDMA_COMMAND, sizeof(init_3), init_3, 1200);
+  spidma_queue(DISPLAY_SPI, SPIDMA_DATA, sizeof(init_3d), init_3d, 1300);
+
+  // DRIVER TIMING CONTROL B
+  spidma_queue(DISPLAY_SPI, SPIDMA_COMMAND, sizeof(init_4), init_4, 1400);
+  spidma_queue(DISPLAY_SPI, SPIDMA_DATA, sizeof(init_4d), init_4d, 1500);
+
+  // POWER ON SEQUENCE CONTROL
+  spidma_queue(DISPLAY_SPI, SPIDMA_COMMAND, sizeof(init_5), init_5, 1600);
+  spidma_queue(DISPLAY_SPI, SPIDMA_DATA, sizeof(init_5d), init_5d, 1700);
+
+  // PUMP RATIO CONTROL
+  ILI9341_WriteCommand(0xF7);
+  {
+      uint8_t data[] = { 0x20 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // POWER CONTROL,VRH[5:0]
+  ILI9341_WriteCommand(0xC0);
+  {
+      uint8_t data[] = { 0x23 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // POWER CONTROL,SAP[2:0];BT[3:0]
+  ILI9341_WriteCommand(0xC1);
+  {
+      uint8_t data[] = { 0x10 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // VCM CONTROL
+  ILI9341_WriteCommand(0xC5);
+  {
+      uint8_t data[] = { 0x3E, 0x28 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // VCM CONTROL 2
+  ILI9341_WriteCommand(0xC7);
+  {
+      uint8_t data[] = { 0x86 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // MEMORY ACCESS CONTROL
+  ILI9341_WriteCommand(0x36);
+  {
+      uint8_t data[] = { 0x48 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // PIXEL FORMAT
+  ILI9341_WriteCommand(0x3A);
+  {
+      uint8_t data[] = { 0x55 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // FRAME RATIO CONTROL, STANDARD RGB COLOR
+  ILI9341_WriteCommand(0xB1);
+  {
+      uint8_t data[] = { 0x00, 0x18 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // DISPLAY FUNCTION CONTROL
+  ILI9341_WriteCommand(0xB6);
+  {
+      uint8_t data[] = { 0x08, 0x82, 0x27 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // 3GAMMA FUNCTION DISABLE
+  ILI9341_WriteCommand(0xF2);
+  {
+      uint8_t data[] = { 0x00 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // GAMMA CURVE SELECTED
+  ILI9341_WriteCommand(0x26);
+  {
+      uint8_t data[] = { 0x01 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // POSITIVE GAMMA CORRECTION
+  ILI9341_WriteCommand(0xE0);
+  {
+      uint8_t data[] = { 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1,
+                         0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00 };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // NEGATIVE GAMMA CORRECTION
+  ILI9341_WriteCommand(0xE1);
+  {
+      uint8_t data[] = { 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1,
+                         0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  // EXIT SLEEP
+  ILI9341_WriteCommand(0x11);
+  HAL_Delay(120);
+
+  // TURN ON DISPLAY
+  ILI9341_WriteCommand(0x29);
+
+  // MADCTL
+  ILI9341_WriteCommand(0x36);
+  {
+      uint8_t data[] = { ILI9341_ROTATION };
+      ILI9341_WriteData(data, sizeof(data));
+  }
+
+  ILI9341_Unselect();
+
+}
+
 static void loop() {
   // Not sure why the original demo code kept DeInit/Init'ing the SPI
   /*
