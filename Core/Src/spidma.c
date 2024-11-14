@@ -31,11 +31,27 @@
 #include "stm32f7xx_hal.h"
 #include "spidma.h"
 
+#define LED_GREEN_Pin GPIO_PIN_14
+#define LED_GREEN_GPIO_Port GPIOB
+
+extern UART_HandleTypeDef huart2;
+
+static void dma_transfer_complete(DMA_HandleTypeDef *hdma) {
+  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+  HAL_UART_Transmit(&huart2, (uint8_t *)"+", 1, HAL_MAX_DELAY);
+}
+
 
 /** Initialize the DMA transfers and the
  * state of the SPI pins
  */
-void spidma_init(spidma_config_t *);
+void spidma_init(spidma_config_t *spi) {
+  // TODO: Most of the work
+
+  // Register the DMA complete callback
+  // HAL_SPI_Register
+  HAL_DMA_RegisterCallback(spi->dma_tx, HAL_DMA_XFER_M1CPLT_CB_ID /* HAL_DMA_XFER_CPLT_CB_ID */, dma_transfer_complete);
+}
 
 /** Set the chip select for this SPI device
  * (active low).
@@ -109,7 +125,7 @@ uint32_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
 
   if (retval == HAL_OK) {
     if (spi->synchronous) {
-      while (!spidma_is_dma_ready(spi));
+      spidma_wait_for_completion(spi);
     }
     return 0;
   }
@@ -152,6 +168,6 @@ uint32_t spidma_write_data(spidma_config_t *spi, uint8_t *buff, size_t buff_size
  *
  * TODO: Add a max timeout
  */
-void spidma_wait_for_completion(spidma_config_t *) {
-  // TODO: CODE ME
+void spidma_wait_for_completion(spidma_config_t *spi) {
+  while (!spidma_is_dma_ready(spi));
 }

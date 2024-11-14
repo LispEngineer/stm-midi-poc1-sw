@@ -87,7 +87,11 @@ SPI MISO/MOSI/CLK - wired directly to SPI2 header
   * DMA 1 Stream 4 Global Interrupt
   * Set the priority just behind the audio I2S
     and ahead of the UART interrupts
-    
+
+### SPI2 DMA Callbacks
+
+Setting DMA HAL callbacks doesn't call anything back when using 
+SPI DMA HAL calls?
     
 ### DMA Notes for SPI - Flash
 

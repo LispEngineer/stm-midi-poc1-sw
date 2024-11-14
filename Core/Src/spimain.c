@@ -182,6 +182,7 @@ void spimain(void) {
   DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
   DISPLAY_SPI.synchronous = 1; // Fake synchronous DMA
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
+  spidma_init(&DISPLAY_SPI);
 
   UART_Printf("Starting init...\r\n");
   init();
