@@ -100,6 +100,8 @@ So, enable SPI callbacks:
 * Register Callback ->
 * SPI: Enable 
 
+[See example](https://community.st.com/t5/stm32cubemx-mcus/stm32f2xx-quot-use-hal-xx-register-callbacks-quot-where-to-set/td-p/262882).
+
 Now the transfer complete callbacks for SPI transfers in DMA
 mode works.
     
