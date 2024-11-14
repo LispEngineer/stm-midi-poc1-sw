@@ -43,16 +43,32 @@ static void spi_transfer_complete(SPI_HandleTypeDef *hdma) {
 }
 
 /** Initialize the DMA transfers and the
- * state of the SPI pins
+ * state of the SPI pins, as well as the sending queue.
+ *
+ * The caller is expected to have initialized these fields:
+  DISPLAY_SPI.bank_cs = GPIO_PA15_SPI2_CS_GPIO_Port;
+  DISPLAY_SPI.pin_cs = GPIO_PA15_SPI2_CS_Pin;
+  DISPLAY_SPI.bank_dc = GPIO_PB8_SPI2_DC_GPIO_Port;
+  DISPLAY_SPI.pin_dc = GPIO_PB8_SPI2_DC_Pin;
+  DISPLAY_SPI.bank_reset = GPIO_PB5_SPI2_RESET_GPIO_Port;
+  DISPLAY_SPI.pin_reset = GPIO_PB5_SPI2_RESET_Pin;
+  DISPLAY_SPI.use_cs = 1;
+  DISPLAY_SPI.use_reset = 1;
+  DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
+  DISPLAY_SPI.synchronous = 1; // Fake synchronous DMA
+  DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
  */
 void spidma_init(spidma_config_t *spi) {
   // TODO: Most of the work
 
-  // Register the DMA complete callback
-  // HAL_SPI_Register
-  // HAL_DMA_RegisterCallback(spi->dma_tx, HAL_DMA_XFER_M1CPLT_CB_ID /* HAL_DMA_XFER_CPLT_CB_ID */, dma_transfer_complete);
+  // TODO: Make this a closure that knows which spidma_config_t was in use
   HAL_SPI_RegisterCallback(spi->spi, HAL_SPI_TX_COMPLETE_CB_ID, spi_transfer_complete);
   is_sending = 0;
+
+  // Set up the queue
+  spi->head_entry = 0;
+  spi->tail_entry = 0;
+  spi->in_delay = 0;
 }
 
 /** Set the chip select for this SPI device
@@ -176,3 +192,149 @@ uint32_t spidma_write_data(spidma_config_t *spi, uint8_t *buff, size_t buff_size
 void spidma_wait_for_completion(spidma_config_t *spi) {
   while (!spidma_is_dma_ready(spi));
 }
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+// Sending queue functions
+
+static inline spiq_size_t next_entry(spiq_size_t x) {
+  return (spiq_size_t)((x + (spiq_size_t)1) & SPI_ENTRY_MASK);
+}
+
+static inline uint32_t spidma_is_queue_full(spidma_config_t *spi) {
+  return spi->head_entry == next_entry(spi->tail_entry);
+}
+
+/*
+ * Returns 0 if we cannot add a queue entry.
+ *
+ * We add something by incrementing the tail.
+ * We read from the head.
+ */
+uint32_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
+                       uint8_t *buff, uint32_t identifier) {
+
+  spiq_size_t c = spi->tail_entry;
+  spiq_size_t n = next_entry(c);
+  spidma_entry_t *entry;
+
+  // check if we have room.
+  // We are out of space when the tail is right behind the head.
+  if (spi->head_entry == n) {
+    return 0;
+  }
+
+  // Update the tail
+  entry = &(spi->entries[c]);
+  spi->tail_entry = n;
+
+  // And save the entry's data
+  entry->type = type;
+  entry->buff = buff;
+  entry->buff_size = buff_size;
+  entry->identifier = identifier;
+
+  return 1;
+}
+
+/*
+ * Processes the next queue entry, if necessary,
+ * or continues waiting.
+ *
+ * Return values:
+ * 0 - nothing to do
+ * 1 - we are in a delay
+ * 2 - we ended a delay and have nothing more to do
+ * 3 - DMA is busy sending still
+ * 4 - invalid type dequeued; nothing done
+ * 5 - delay begun
+ * 6 - SPI DMA transfer begun
+ * 7 - SPI aux pin set (Select, Reset)
+ */
+uint32_t spidma_check_activity(spidma_config_t *spi) {
+  uint32_t nothing_to_do = 0;
+  uint32_t retval;
+
+  // Handle our delay function
+  if (spi->in_delay) {
+    if (spi->delay_until == HAL_GetTick()) {
+      // We are done delaying
+      spi->in_delay = 0;
+      nothing_to_do = 2;
+      // Fall through to do the next thing
+    } else {
+      // Continue delaying - do nothing here
+      return 1;
+    }
+  }
+
+  // Check if we can do anything
+  if (is_sending) {
+    return 3;
+  }
+
+  if (spi->head_entry == spi->tail_entry) {
+    // Queue is empty
+    return nothing_to_do;
+  }
+
+  // Take an entry off the queue and start doing it
+  spidma_entry_t *e = &(spi->entries[spi->head_entry]);
+
+  // Do our action
+  switch (e->type) {
+  case SPIDMA_DATA:
+    spidma_write_data(spi, e->buff, e->buff_size);
+    // TODO: Check return value
+    retval = 6;
+    break;
+  case SPIDMA_COMMAND:
+    spidma_write_command(spi, e->buff, e->buff_size);
+    // TODO: Check return value
+    retval = 6;
+    break;
+  case SPIDMA_UNCHANGED:
+    spidma_write(spi, e->buff, e->buff_size);
+    retval = 6;
+    break;
+  case SPIDMA_DELAY:
+    spi->in_delay = 1;
+    spi->delay_until = HAL_GetTick() + e->buff_size;
+    retval = 5;
+    break;
+  case SPIDMA_RESET:
+    spidma_reset(spi);
+    retval = 7;
+    break;
+  case SPIDMA_UNRESET:
+    spidma_dereset(spi);
+    retval = 7;
+    break;
+  case SPIDMA_SELECT:
+    spidma_select(spi);
+    retval = 7;
+    break;
+  case SPIDMA_DESELECT:
+    spidma_deselect(spi);
+    retval = 7;
+    break;
+  default:
+    retval = 4;
+  }
+
+  // Move our head ahead
+  spi->head_entry = next_entry(spi->head_entry);
+
+  return retval;
+}
+
+
+
+
+
+
+
+
+
+

@@ -11,6 +11,33 @@
 #ifndef INC_SPIDMA_H_
 #define INC_SPIDMA_H_
 
+#define NUM_SPI_ENTRIES ((size_t)32)   // This must be a power of two
+#define SPI_ENTRY_MASK  ((size_t)0x1F) // A mask of the number of bits to hold the value above from 0 to that minus 1
+typedef uint16_t spiq_size_t;
+
+typedef enum spidma_entry_type {
+  SPIDMA_DATA,      // Set the D/C flag to Data
+  SPIDMA_COMMAND,   // Set the D/C flag to Command
+  SPIDMA_UNCHANGED, // Do not change the D/C flag setting
+  SPIDMA_DELAY,     // buff_size is number of milliseconds
+  SPIDMA_RESET,     // Assert the RESET signal (active low)
+  SPIDMA_UNRESET,   // De-assert the RESET signal
+  SPIDMA_SELECT,    // Assert the chip select signal (active low)
+  SPIDMA_DESELECT   // De-assert the CS signal
+} spidma_entry_type_t;
+
+/*
+ * This structure holds
+ */
+typedef struct spidma_entry {
+  uint8_t  type;
+  uint16_t buff_size;
+  uint8_t *buff;
+  // User-assigned identifier of this queue entry
+  uint32_t identifier;
+  // TODO: Should we have a flag to allow a free(buff)?
+} spidma_entry_t;
+
 typedef struct spidma_config {
   // The pins and banks for these SPI display signals:
   // CS - Chip Select (active low)
@@ -38,6 +65,14 @@ typedef struct spidma_config {
   DMA_HandleTypeDef *dma_tx;
 
   // TODO: Flag set when we're sending - reset by interrupt
+
+  // Our sending buffer
+  // Note that none of this code is thread-safe
+  spidma_entry_t entries[NUM_SPI_ENTRIES];
+  spiq_size_t head_entry; // When head == tail, queue is EMPTY
+  spiq_size_t tail_entry;
+  uint8_t  in_delay;
+  uint32_t delay_until;
 } spidma_config_t;
 
 
@@ -56,5 +91,8 @@ uint32_t spidma_write_data(spidma_config_t *, uint8_t *buff, size_t buff_size);
 void spidma_wait_for_completion(spidma_config_t *);
 
 // SPI transmit queue functions
+uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t);
+uint32_t spidma_check_activity(spidma_config_t *spi);
+
 
 #endif /* INC_SPIDMA_H_ */
