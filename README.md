@@ -77,6 +77,18 @@ Power (for PJRC ILI9341 Display)
 
 SPI MISO/MOSI/CLK - wired directly to SPI2 header
 
+### SPI2 DMA
+
+* DMA 1 Stream 4
+  * Memory auto-increment
+  * Mode Normal
+  * Priority Medium
+* NVIC
+  * DMA 1 Stream 4 Global Interrupt
+  * Set the priority just behind the audio I2S
+    and ahead of the UART interrupts
+
+
 
 # Functionality
 

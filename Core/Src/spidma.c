@@ -73,9 +73,9 @@ inline void spidma_dereset(spidma_config_t *spi) {
   }
 }
 
-/** Returns non-zero if DMA channel is sending data now. */
-inline uint32_t spidma_is_dma_busy(spidma_config_t *spi) {
-  return 0;
+/** Returns non-zero if DMA channel is ready to send. */
+inline uint32_t spidma_is_dma_ready(spidma_config_t *spi) {
+  return HAL_DMA_GetState(spi->dma_tx) == HAL_DMA_STATE_READY;
 }
 
 /** Send a buffer of data over the SPI connection via DMA.
@@ -98,23 +98,34 @@ uint32_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
     return 1U;
   }
 
-  // TODO: Check if DMA is in use
-  if (0) {
+  // Check if DMA is in use
+  if (!spidma_is_dma_ready(spi)) {
     // Oops, DMA is in use
     return 2U;
   }
 
   // TODO: Start a DMA transfer
-  return 0xFFFFFFFF;
+  HAL_StatusTypeDef retval = HAL_SPI_Transmit_DMA(spi->spi, buff, buff_size);
+
+  if (retval == HAL_OK) {
+    if (spi->synchronous) {
+      while (!spidma_is_dma_ready(spi));
+    }
+    return 0;
+  }
+
+  // One of the HAL-not-OK values shifted to the next nibble
+  return retval << 4;
 }
 
 /** This asserts the command signal and then sends the specified data
  * using spidma_write().
  */
 uint32_t spidma_write_command(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
-  // TODO: Check if DMA is in use
-  if (0) {
-    return 2;
+  // Check if DMA is in use
+  if (!spidma_is_dma_ready(spi)) {
+    // Oops, DMA is in use
+    return 2U;
   }
 
   HAL_GPIO_WritePin(spi->bank_dc, spi->pin_dc, GPIO_PIN_RESET);
@@ -126,9 +137,10 @@ uint32_t spidma_write_command(spidma_config_t *spi, uint8_t *buff, size_t buff_s
  * using spidma_write().
  */
 uint32_t spidma_write_data(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
-  // TODO: Check if DMA is in use
-  if (0) {
-    return 2;
+  // Check if DMA is in use
+  if (!spidma_is_dma_ready(spi)) {
+    // Oops, DMA is in use
+    return 2U;
   }
 
   HAL_GPIO_WritePin(spi->bank_dc, spi->pin_dc, GPIO_PIN_SET);
