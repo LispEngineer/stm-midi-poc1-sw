@@ -90,8 +90,8 @@ SPI MISO/MOSI/CLK - wired directly to SPI2 header
 
 ### SPI2 DMA Callbacks
 
-Setting DMA HAL callbacks doesn't call anything back when using 
-SPI DMA HAL calls.
+Setting HAL DMA callbacks doesn't call anything back when using 
+HAL SPI DMA calls.
 
 So, enable SPI callbacks:
 * Edit IOC file ->
@@ -99,6 +99,9 @@ So, enable SPI callbacks:
 * Advanced Settings ->
 * Register Callback ->
 * SPI: Enable 
+
+Now the transfer complete callbacks for SPI transfers in DMA
+mode works.
     
 ### DMA Notes for SPI - Flash
 
