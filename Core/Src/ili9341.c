@@ -1,8 +1,13 @@
 /* vim: set ai et ts=4 sw=4: */
 #include "stm32f7xx_hal.h"
 #include "ili9341.h"
+#include "spidma.h"
 
 static uint16_t pixel_buffer[320*240];
+
+#define DISPLAY_SPI spi2tx
+extern spidma_config_t DISPLAY_SPI;
+
 
 static void ILI9341_Select() {
     HAL_GPIO_WritePin(ILI9341_CS_GPIO_Port, ILI9341_CS_Pin, GPIO_PIN_RESET);
@@ -19,8 +24,7 @@ static void ILI9341_Reset() {
 }
 
 static void ILI9341_WriteCommand(uint8_t cmd) {
-    HAL_GPIO_WritePin(ILI9341_DC_GPIO_Port, ILI9341_DC_Pin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(&ILI9341_SPI_PORT, &cmd, sizeof(cmd), HAL_MAX_DELAY);
+  spidma_write_command(&DISPLAY_SPI, &cmd, sizeof(cmd));
 }
 
 static void ILI9341_WriteData(uint8_t* buff, size_t buff_size) {

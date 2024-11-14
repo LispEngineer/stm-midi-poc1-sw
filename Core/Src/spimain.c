@@ -14,11 +14,19 @@
 #endif // INCLUDE_TOUCH
 #include "fonts.h"
 #include "testimg.h"
+#include "spidma.h"
 
 
 // From main
 #define CONSOLE_UART huart2  // EVT#1 Console Port
 extern UART_HandleTypeDef CONSOLE_UART;
+
+#define DISPLAY_SPI spi2tx
+extern spidma_config_t DISPLAY_SPI;
+
+#define DISPLAY_DMA hdma_spi2_tx
+extern DMA_HandleTypeDef DISPLAY_DMA;
+
 
 static void UART_Printf(const char* fmt, ...) {
     char buff[256];
@@ -151,9 +159,29 @@ static void loop() {
 
 }
 
+#define ILI9341_RES_Pin       GPIO_PB5_SPI2_RESET_Pin
+#define ILI9341_RES_GPIO_Port GPIO_PB5_SPI2_RESET_GPIO_Port
+#define ILI9341_CS_Pin        GPIO_PA15_SPI2_CS_Pin
+#define ILI9341_CS_GPIO_Port  GPIO_PA15_SPI2_CS_GPIO_Port
+#define ILI9341_DC_Pin        GPIO_PB8_SPI2_DC_Pin
+#define ILI9341_DC_GPIO_Port  GPIO_PB8_SPI2_DC_GPIO_Port
+
 
 // Main program for an SPI demo
 void spimain(void) {
+  // Configure new DMA driver
+  DISPLAY_SPI.bank_cs = GPIO_PA15_SPI2_CS_GPIO_Port;
+  DISPLAY_SPI.pin_cs = GPIO_PA15_SPI2_CS_Pin;
+  DISPLAY_SPI.bank_dc = GPIO_PB8_SPI2_DC_GPIO_Port;
+  DISPLAY_SPI.pin_dc = GPIO_PB8_SPI2_DC_Pin;
+  DISPLAY_SPI.bank_reset = GPIO_PB5_SPI2_RESET_GPIO_Port;
+  DISPLAY_SPI.pin_reset = GPIO_PB5_SPI2_RESET_Pin;
+  DISPLAY_SPI.use_cs = 1;
+  DISPLAY_SPI.use_reset = 1;
+  DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
+  DISPLAY_SPI.synchronous = 1; // Fake synchronous DMA
+  DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
+
   UART_Printf("Starting init...\r\n");
   init();
 

@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "realmain.h"
 #include "spimain.h"
+#include "spidma.h"
 
 /* USER CODE END Includes */
 
@@ -62,6 +63,8 @@ UART_HandleTypeDef huart3;
 UART_HandleTypeDef huart6;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
+spidma_config_t spi2tx;
 
 /* USER CODE BEGIN PV */
 

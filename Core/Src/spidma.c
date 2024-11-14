@@ -74,7 +74,7 @@ inline void spidma_dereset(spidma_config_t *spi) {
 }
 
 /** Returns non-zero if DMA channel is ready to send. */
-inline uint32_t spidma_is_dma_ready(spidma_config_t *spi) {
+uint32_t spidma_is_dma_ready(spidma_config_t *spi) {
   return HAL_DMA_GetState(spi->dma_tx) == HAL_DMA_STATE_READY;
 }
 
