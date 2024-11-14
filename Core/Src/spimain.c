@@ -120,8 +120,9 @@ static void loop() {
     ILI9341_WriteString(0, 0, "BLACK", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
     HAL_Delay(500);
 
+    UART_Printf("Drawing image...\r\n");
     ILI9341_DrawImage((ILI9341_WIDTH - 240) / 2, (ILI9341_HEIGHT - 240) / 2, 240, 240, (const uint16_t*)test_img_240x240);
-
+    UART_Printf("...done.\r\n");
     HAL_Delay(3000);
 
 #ifdef INCLUDE_TOUCH

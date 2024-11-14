@@ -1,4 +1,5 @@
 /* vim: set ai et ts=4 sw=4: */
+#include <string.h>
 #include "stm32f7xx_hal.h"
 #include "ili9341.h"
 #include "spidma.h"
@@ -305,9 +306,14 @@ void ILI9341_DrawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uin
     if((x + w - 1) >= ILI9341_WIDTH) return;
     if((y + h - 1) >= ILI9341_HEIGHT) return;
 
+    // This was not working via DMA when drawing the data directly out of Flash, so let's
+    // see if copying it to memory works
+    size_t data_bytes = sizeof(uint16_t) * w * h;
+    memcpy(pixel_buffer, data, data_bytes);
+
     ILI9341_Select();
     ILI9341_SetAddressWindow(x, y, x+w-1, y+h-1);
-    ILI9341_WriteData((uint8_t*)data, sizeof(uint16_t)*w*h);
+    ILI9341_WriteData((uint8_t*)pixel_buffer, data_bytes);
     ILI9341_Unselect();
 }
 

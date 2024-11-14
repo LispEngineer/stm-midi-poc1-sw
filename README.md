@@ -87,7 +87,24 @@ SPI MISO/MOSI/CLK - wired directly to SPI2 header
   * DMA 1 Stream 4 Global Interrupt
   * Set the priority just behind the audio I2S
     and ahead of the UART interrupts
+    
+    
+### DMA Notes for SPI - Flash
 
+DMA directly from Flash to SPI
+*does not work*. The HAL DMA transfer
+never completes and the status just says
+`BUSY` the whole time. This was evidenced
+in the image DMA directly from text (const image data)
+stored in the flash being unable to be DMA'd
+to the display.
+
+I don't know if this is *supposed* to work but I'm
+just doing it wrong (e.g., using the flash alias address
+instead of the original flash address, or something).
+
+This was worked around by copying the flash to memory
+and sending the data that way.
 
 
 # Functionality
