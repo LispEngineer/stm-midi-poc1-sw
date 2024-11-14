@@ -36,6 +36,8 @@ typedef struct spidma_config {
   // and the associated transfer DMA
   SPI_HandleTypeDef *spi;
   DMA_HandleTypeDef *dma_tx;
+
+  // TODO: Flag set when we're sending - reset by interrupt
 } spidma_config_t;
 
 
