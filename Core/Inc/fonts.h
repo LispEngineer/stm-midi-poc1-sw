@@ -8,6 +8,7 @@ typedef struct {
     const uint8_t width;
     uint8_t height;
     const uint16_t *data;
+    // TODO(dougfields): Character size in bytes for allocator
 } FontDef;
 
 
