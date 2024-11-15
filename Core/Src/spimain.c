@@ -403,6 +403,19 @@ void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
 }
 
 
+static uint8_t ili9341_invert_on = 0x21;  // INVON
+static uint8_t ili9341_invert_off = 0x20; // INVOFF
+
+void spidma_ili9341_invert(spidma_config_t *spi, bool invert) {
+  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 60000);
+  spidma_queue(spi, SPIDMA_COMMAND, 1, invert ? &ili9341_invert_on : &ili9341_invert_off, 60010);
+  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 60020);
+
+  // Run the queue until it's empty
+  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+}
+
+
 static void loop(spidma_config_t *spi) {
   // Draw black screen with red border
   spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
@@ -425,9 +438,9 @@ static void loop(spidma_config_t *spi) {
   spidma_ili9341_write_string(spi, 0, 3*10+3*18, "Font_16x26, blue, lorem ipsum dolor sit amet", Font_16x26, ILI9341_BLUE, ILI9341_BLACK);
   HAL_Delay(500);
 
-  ILI9341_InvertColors(true);
+  spidma_ili9341_invert(spi, true);
   HAL_Delay(500);
-  ILI9341_InvertColors(false);
+  spidma_ili9341_invert(spi, false);
   HAL_Delay(1000);
 
   // Check colors
