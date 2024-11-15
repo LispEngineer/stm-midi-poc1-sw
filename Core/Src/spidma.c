@@ -279,6 +279,9 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
     return nothing_to_do;
   }
 
+  // Blink a light for gratuitous sake
+  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_15); // Red LED
+
   // Take an entry off the queue and start doing it
   spidma_entry_t *e = &(spi->entries[spi->head_entry]);
 
