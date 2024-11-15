@@ -345,7 +345,58 @@ void spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
     str++;
   }
 
-  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 40000);
+  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 40000);
+
+  // Run the queue until it's empty
+  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+}
+
+
+// TODO: Get rid of this HUGE memory suck
+static uint16_t image_buffer[320*240];
+static const size_t chunk_size = 65000;
+
+/*
+ * OLD:
+ * data must be a pointer into DMA-from-able memory.
+ * This does NOT seem to include Flash in STM32F7.
+ */
+void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
+                                  uint16_t w, uint16_t h, const uint16_t* data,
+                                  uint32_t copy_data) {
+  // Limits check
+  if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT))
+    return;
+  if ((x + w - 1) >= ILI9341_WIDTH)
+    return;
+  if ((y + h - 1) >= ILI9341_HEIGHT)
+    return;
+
+  const uint8_t *source;
+
+  // This was not working via DMA when drawing the data directly out of Flash, so
+  // we have to copy it to main memory where DMA can transfer from
+  size_t data_bytes = sizeof(uint16_t) * w * h;
+  if (copy_data) {
+    memcpy(image_buffer, data, data_bytes);
+    source = (uint8_t *)image_buffer;
+  } else {
+    source = (uint8_t *)data;
+  }
+
+  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 50000);
+  spidma_ili9341_set_address_window(spi, x, y, x + w - 1, y + h - 1);
+
+  // We can only send DMA data in a certain chunk size at a time.
+  // In this case, it's 16-bits (65535).
+  while (data_bytes > 0) {
+    uint16_t cur_chunk = data_bytes > chunk_size ? chunk_size : data_bytes;
+    spidma_queue(spi, SPIDMA_DATA, cur_chunk, (uint8_t *)source, 50010);
+    source += cur_chunk;
+    data_bytes -= cur_chunk;
+  }
+
+  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 50020);
 
   // Run the queue until it's empty
   while (spidma_check_activity(spi) != 0); // 0 = nothing to do
@@ -413,7 +464,9 @@ static void loop(spidma_config_t *spi) {
   HAL_Delay(1000);
 
   UART_Printf("Drawing image...\r\n");
-  ILI9341_DrawImage((ILI9341_WIDTH - 240) / 2, (ILI9341_HEIGHT - 240) / 2, 240, 240, (const uint16_t*)test_img_240x240);
+  // Last argument is to copy the data before sending it.
+  // If the data is coming from flash, we should do that.
+  spidma_ili9341_draw_image(spi, (ILI9341_WIDTH - 240) / 2, (ILI9341_HEIGHT - 240) / 2, 240, 240, (const uint16_t*)test_img_240x240, 1);
   UART_Printf("...done.\r\n");
   HAL_Delay(1500);
 
