@@ -39,14 +39,6 @@ static void UART_Printf(const char* fmt, ...) {
     va_end(args);
 }
 
-static void init() {
-    ILI9341_Unselect();
-#ifdef INCLUDE_TOUCH
-    ILI9341_TouchUnselect();
-#endif
-    ILI9341_Init();
-}
-
 uint8_t init_0[]   = { 0x01 }; // Command SOFTWARE RESET
 uint8_t init_1[]   = { 0xCB }; // Command POWER CONTROL A
 uint8_t init_1d[]  = { 0x39, 0x2C, 0x00, 0x34, 0x02 }; // Data for above
@@ -99,6 +91,9 @@ uint8_t init_d[]  = {  };
 static void spidma_ili9341_init(spidma_config_t *spi) {
   // Queue all the commands to do a full reset
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 100);
+#ifdef INCLUDE_TOUCH
+  ILI9341_TouchUnselect();
+#endif
   spidma_queue(spi, SPIDMA_SELECT, 0, 0, 200);
 
   spidma_queue(spi, SPIDMA_RESET, 0, 0, 300);
@@ -243,9 +238,9 @@ static uint16_t fill_rect_buff[FILL_RECT_BUFF_SZ];
 
 void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
   // clipping
-  if((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) return;
-  if((x + w - 1) >= ILI9341_WIDTH) w = ILI9341_WIDTH - x;
-  if((y + h - 1) >= ILI9341_HEIGHT) h = ILI9341_HEIGHT - y;
+  if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) return;
+  if ((x + w - 1) >= ILI9341_WIDTH) w = ILI9341_WIDTH - x;
+  if ((y + h - 1) >= ILI9341_HEIGHT) h = ILI9341_HEIGHT - y;
 
   spidma_queue(spi, SPIDMA_SELECT, 0, 0, 20000);
   spidma_ili9341_set_address_window(spi, x, y, x+w-1, y+h-1);
@@ -286,102 +281,161 @@ void spidma_ili9341_fill_screen(spidma_config_t *spi, uint16_t color) {
   spidma_ili9341_fill_rectangle(spi, 0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, color);
 }
 
+void spidma_ili9341_draw_pixel(spidma_config_t *spi, uint16_t x, uint16_t y, uint16_t color) {
+  if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT))
+      return;
 
-static void loop() {
-    // Check border
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLACK);
-
-    for(int x = 0; x < ILI9341_WIDTH; x++) {
-        ILI9341_DrawPixel(x, 0, ILI9341_RED);
-        ILI9341_DrawPixel(x, ILI9341_HEIGHT-1, ILI9341_RED);
-    }
-
-    for(int y = 0; y < ILI9341_HEIGHT; y++) {
-        ILI9341_DrawPixel(0, y, ILI9341_RED);
-        ILI9341_DrawPixel(ILI9341_WIDTH-1, y, ILI9341_RED);
-    }
-
-    HAL_Delay(3000);
-
-    // Check fonts
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLACK);
-    ILI9341_WriteString(0, 0, "Font_7x10, red on black, lorem ipsum dolor sit amet", Font_7x10, ILI9341_RED, ILI9341_BLACK);
-    ILI9341_WriteString(0, 3*10, "Font_11x18, green, lorem ipsum dolor sit amet", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
-    ILI9341_WriteString(0, 3*10+3*18, "Font_16x26, blue, lorem ipsum dolor sit amet", Font_16x26, ILI9341_BLUE, ILI9341_BLACK);
-
-    HAL_Delay(1000);
-    ILI9341_InvertColors(true);
-    HAL_Delay(1000);
-    ILI9341_InvertColors(false);
-
-    HAL_Delay(5000);
-
-    // Check colors
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_WHITE);
-    ILI9341_WriteString(0, 0, "WHITE", Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
-    HAL_Delay(500);
-
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLUE);
-    ILI9341_WriteString(0, 0, "BLUE", Font_11x18, ILI9341_BLACK, ILI9341_BLUE);
-    HAL_Delay(500);
-
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_RED);
-    ILI9341_WriteString(0, 0, "RED", Font_11x18, ILI9341_BLACK, ILI9341_RED);
-    HAL_Delay(500);
-
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_GREEN);
-    ILI9341_WriteString(0, 0, "GREEN", Font_11x18, ILI9341_BLACK, ILI9341_GREEN);
-    HAL_Delay(500);
-
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_CYAN);
-    ILI9341_WriteString(0, 0, "CYAN", Font_11x18, ILI9341_BLACK, ILI9341_CYAN);
-    HAL_Delay(500);
-
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_MAGENTA);
-    ILI9341_WriteString(0, 0, "MAGENTA", Font_11x18, ILI9341_BLACK, ILI9341_MAGENTA);
-    HAL_Delay(500);
-
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_YELLOW);
-    ILI9341_WriteString(0, 0, "YELLOW", Font_11x18, ILI9341_BLACK, ILI9341_YELLOW);
-    HAL_Delay(500);
-
-    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLACK);
-    ILI9341_WriteString(0, 0, "BLACK", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
-    HAL_Delay(500);
-
-    UART_Printf("Drawing image...\r\n");
-    ILI9341_DrawImage((ILI9341_WIDTH - 240) / 2, (ILI9341_HEIGHT - 240) / 2, 240, 240, (const uint16_t*)test_img_240x240);
-    UART_Printf("...done.\r\n");
-    HAL_Delay(3000);
-
-#ifdef INCLUDE_TOUCH
-    ILI9341_FillScreen(ILI9341_BLACK);
-    ILI9341_WriteString(0, 0, "Touchpad test.  Draw something!", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
-    HAL_Delay(1000);
-    ILI9341_FillScreen(ILI9341_BLACK);
-
-    int npoints = 0;
-    while(npoints < 10000) {
-        uint16_t x, y;
-
-        if(ILI9341_TouchGetCoordinates(&x, &y)) {
-            ILI9341_DrawPixel(x, 320-y, ILI9341_WHITE);
-            npoints++;
-        }
-    }
-#endif
-
-    UART_Printf("loop() done\r\n");
-
+  spidma_ili9341_fill_rectangle(spi, x, y, 1, 1, color);
 }
 
-#define ILI9341_RES_Pin       GPIO_PB5_SPI2_RESET_Pin
-#define ILI9341_RES_GPIO_Port GPIO_PB5_SPI2_RESET_GPIO_Port
-#define ILI9341_CS_Pin        GPIO_PA15_SPI2_CS_Pin
-#define ILI9341_CS_GPIO_Port  GPIO_PA15_SPI2_CS_GPIO_Port
-#define ILI9341_DC_Pin        GPIO_PB8_SPI2_DC_Pin
-#define ILI9341_DC_GPIO_Port  GPIO_PB8_SPI2_DC_GPIO_Port
+static uint16_t char_buf[FILL_RECT_BUFF_SZ];
 
+void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
+                                         char ch, FontDef font, uint16_t color, uint16_t bgcolor) {
+  uint32_t i, b, j;
+  size_t pos = 0;
+
+  if (((font.width * font.height) >> FILL_RECT_BUFF_SHIFT) > 0) {
+    // Font too big for our buffer, oh well
+    return;
+  }
+
+  // We need to flip the bytes of the color we are setting
+  color = ((color & 0xFF) << 8) | (color >> 8);
+  bgcolor = ((bgcolor & 0xFF) << 8) | (bgcolor >> 8);
+
+  // Prepare to blast our character out in a single write
+  for (i = 0; i < font.height; i++) {
+    b = font.data[(ch - 32) * font.height + i];
+    for (j = 0; j < font.width; j++) {
+      char_buf[pos] = ((b << j) & 0x8000) ? color : bgcolor;
+      pos++;
+    }
+  }
+
+  spidma_ili9341_set_address_window(spi, x, y, x + font.width - 1, y + font.height - 1);
+  spidma_queue(spi, SPIDMA_DATA, pos * 2, (uint8_t *)char_buf, 30000);
+
+  // Run the queue until it's empty
+  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+}
+
+void spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
+                                    const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
+  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 40000);
+
+  while (*str) {
+    if (x + font.width >= ILI9341_WIDTH) {
+      x = 0;
+      y += font.height;
+      if (y + font.height >= ILI9341_HEIGHT) {
+        // Running off the screen - so just stop drawing
+        break;
+      }
+
+      if (*str == ' ') {
+        // skip spaces in the beginning of the new line
+        str++;
+        continue;
+      }
+    }
+
+    spidma_ili9341_write_char(spi, x, y, *str, font, color, bgcolor);
+    x += font.width;
+    str++;
+  }
+
+  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 40000);
+
+  // Run the queue until it's empty
+  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+}
+
+
+static void loop(spidma_config_t *spi) {
+  // Draw black screen with red border
+  spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
+
+  for(int x = 0; x < ILI9341_WIDTH; x++) {
+    spidma_ili9341_draw_pixel(spi, x, 0, ILI9341_RED);
+    spidma_ili9341_draw_pixel(spi, x, ILI9341_HEIGHT-1, ILI9341_RED);
+  }
+
+  for(int y = 0; y < ILI9341_HEIGHT; y++) {
+    spidma_ili9341_draw_pixel(spi, 0, y, ILI9341_RED);
+    spidma_ili9341_draw_pixel(spi, ILI9341_WIDTH-1, y, ILI9341_RED);
+  }
+  HAL_Delay(1000);
+
+  // Check fonts
+  spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
+  spidma_ili9341_write_string(spi, 0, 0, "Font_7x10, red on black, lorem ipsum dolor sit amet", Font_7x10, ILI9341_RED, ILI9341_BLACK);
+  spidma_ili9341_write_string(spi, 0, 3*10, "Font_11x18, green, lorem ipsum dolor sit amet", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
+  spidma_ili9341_write_string(spi, 0, 3*10+3*18, "Font_16x26, blue, lorem ipsum dolor sit amet", Font_16x26, ILI9341_BLUE, ILI9341_BLACK);
+  HAL_Delay(500);
+
+  ILI9341_InvertColors(true);
+  HAL_Delay(500);
+  ILI9341_InvertColors(false);
+  HAL_Delay(1000);
+
+  // Check colors
+  spidma_ili9341_fill_screen(spi, ILI9341_WHITE);
+  spidma_ili9341_write_string(spi, 0, 0, "WHITE", Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
+  HAL_Delay(500);
+
+  spidma_ili9341_fill_screen(spi, ILI9341_BLUE);
+  spidma_ili9341_write_string(spi, 0, 0, "BLUE", Font_11x18, ILI9341_BLACK, ILI9341_BLUE);
+  HAL_Delay(500);
+
+  spidma_ili9341_fill_screen(spi, ILI9341_RED);
+  spidma_ili9341_write_string(spi, 0, 0, "RED", Font_11x18, ILI9341_BLACK, ILI9341_RED);
+  HAL_Delay(500);
+
+  spidma_ili9341_fill_screen(spi, ILI9341_GREEN);
+  spidma_ili9341_write_string(spi, 0, 0, "GREEN", Font_11x18, ILI9341_BLACK, ILI9341_GREEN);
+  HAL_Delay(500);
+
+  spidma_ili9341_fill_screen(spi, ILI9341_CYAN);
+  spidma_ili9341_write_string(spi, 0, 0, "CYAN", Font_11x18, ILI9341_BLACK, ILI9341_CYAN);
+  HAL_Delay(500);
+
+  spidma_ili9341_fill_screen(spi, ILI9341_MAGENTA);
+  spidma_ili9341_write_string(spi, 0, 0, "MAGENTA", Font_11x18, ILI9341_BLACK, ILI9341_MAGENTA);
+  HAL_Delay(500);
+
+  spidma_ili9341_fill_screen(spi, ILI9341_YELLOW);
+  spidma_ili9341_write_string(spi, 0, 0, "YELLOW", Font_11x18, ILI9341_BLACK, ILI9341_YELLOW);
+  HAL_Delay(500);
+
+  spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
+  spidma_ili9341_write_string(spi, 0, 0, "BLACK", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
+  HAL_Delay(1000);
+
+  UART_Printf("Drawing image...\r\n");
+  ILI9341_DrawImage((ILI9341_WIDTH - 240) / 2, (ILI9341_HEIGHT - 240) / 2, 240, 240, (const uint16_t*)test_img_240x240);
+  UART_Printf("...done.\r\n");
+  HAL_Delay(1500);
+
+#ifdef INCLUDE_TOUCH
+  ILI9341_FillScreen(ILI9341_BLACK);
+  ILI9341_WriteString(0, 0, "Touchpad test.  Draw something!", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
+  HAL_Delay(1000);
+  ILI9341_FillScreen(ILI9341_BLACK);
+
+  int npoints = 0;
+  while(npoints < 10000) {
+      uint16_t x, y;
+
+      if(ILI9341_TouchGetCoordinates(&x, &y)) {
+          ILI9341_DrawPixel(x, 320-y, ILI9341_WHITE);
+          npoints++;
+      }
+  }
+#endif
+
+  UART_Printf("loop() done\r\n");
+}
 
 // Main program for an SPI demo
 void spimain(void) {
@@ -404,6 +458,6 @@ void spimain(void) {
 
   UART_Printf("Starting loop...\r\n");
   while (1) {
-    loop();
+    loop(DISPLAY_SPIP);
   }
 }
