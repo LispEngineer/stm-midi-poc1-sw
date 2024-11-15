@@ -16,10 +16,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "main.h"
 #include "spidma.h"
-// TODO: Stop including this file - reimplement it
-#include "ili9341.h"
+#include "fonts.h"
+#include "spidma_ili9341.h"
 
 static uint8_t init_0[]   = { 0x01 }; // Command SOFTWARE RESET
 static uint8_t init_1[]   = { 0xCB }; // Command POWER CONTROL A

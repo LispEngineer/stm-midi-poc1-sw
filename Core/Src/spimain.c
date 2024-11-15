@@ -8,7 +8,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "main.h"
-#include "ili9341.h"
 #ifdef INCLUDE_TOUCH
 #include "ili9341_touch.h"
 #endif // INCLUDE_TOUCH
@@ -25,6 +24,9 @@ extern UART_HandleTypeDef CONSOLE_UART;
 #define DISPLAY_SPI spi2tx
 #define DISPLAY_SPIP (&(DISPLAY_SPI))
 extern spidma_config_t DISPLAY_SPI;
+
+#define ILI9341_SPI_PORT hspi2
+extern SPI_HandleTypeDef ILI9341_SPI_PORT;
 
 #define DISPLAY_DMA hdma_spi2_tx
 extern DMA_HandleTypeDef DISPLAY_DMA;
