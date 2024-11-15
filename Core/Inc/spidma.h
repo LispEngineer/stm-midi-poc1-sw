@@ -36,6 +36,8 @@ typedef struct spidma_entry {
   // User-assigned identifier of this queue entry
   uint32_t identifier;
   // TODO: Should we have a flag to allow a free(buff)?
+  // How many times should we repeat this entry?
+  uint8_t  repeats;
 } spidma_entry_t;
 
 typedef struct spidma_config {
@@ -91,7 +93,8 @@ uint32_t spidma_write_data(spidma_config_t *, uint8_t *buff, size_t buff_size);
 void spidma_wait_for_completion(spidma_config_t *);
 
 // SPI transmit queue functions
-uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t);
+uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t); // 0 repeats
+uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t, uint8_t repeats); // repeats
 uint32_t spidma_check_activity(spidma_config_t *spi);
 
 

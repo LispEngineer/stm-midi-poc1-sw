@@ -96,128 +96,200 @@ uint8_t init_[]   = {  };
 uint8_t init_d[]  = {  };
 */
 
-static void spidma_ili9341_init() {
+static void spidma_ili9341_init(spidma_config_t *spi) {
   // Queue all the commands to do a full reset
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DESELECT, 0, 0, 100);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_SELECT, 0, 0, 200);
+  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 100);
+  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 200);
 
-  spidma_queue(DISPLAY_SPIP, SPIDMA_RESET, 0, 0, 300);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DELAY, 5 + 1, 0, 400); // Wait 5 milliseconds
-  spidma_queue(DISPLAY_SPIP, SPIDMA_UNRESET, 0, 0, 500);
+  spidma_queue(spi, SPIDMA_RESET, 0, 0, 300);
+  spidma_queue(spi, SPIDMA_DELAY, 5 + 1, 0, 400); // Wait 5 milliseconds
+  spidma_queue(spi, SPIDMA_UNRESET, 0, 0, 500);
 
   // Display initialization based upon https://github.com/afiskon/stm32-ili9341
 
   // SOFTWARE RESET
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_0), init_0, 600);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DELAY, 1000 + 1, 0, 700); // Wait 1000 milliseconds
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_0), init_0, 600);
+  spidma_queue(spi, SPIDMA_DELAY, 1000 + 1, 0, 700); // Wait 1000 milliseconds
 
   // POWER CONTROL A
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_1), init_1, 800);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_1d), init_1d, 900);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_1), init_1, 800);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_1d), init_1d, 900);
 
   // POWER CONTROL B
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_2), init_2, 1000);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_2d), init_2d, 1100);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_2), init_2, 1000);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_2d), init_2d, 1100);
 
   // DRIVER TIMING CONTROL A
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_3), init_3, 1200);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_3d), init_3d, 1300);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_3), init_3, 1200);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_3d), init_3d, 1300);
 
   // DRIVER TIMING CONTROL B
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_4), init_4, 1400);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_4d), init_4d, 1500);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_4), init_4, 1400);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_4d), init_4d, 1500);
 
   // POWER ON SEQUENCE CONTROL
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_5), init_5, 1600);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_5d), init_5d, 1700);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_5), init_5, 1600);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_5d), init_5d, 1700);
 
   // PUMP RATIO CONTROL
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_6), init_6, 1800);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_6d), init_6d, 1900);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_6), init_6, 1800);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_6d), init_6d, 1900);
 
   // POWER CONTROL,VRH[5:0]
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_7), init_7, 2000);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_7d), init_7d, 2100);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_7), init_7, 2000);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_7d), init_7d, 2100);
 
   // POWER CONTROL,SAP[2:0];BT[3:0]
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_8), init_8, 2200);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_8d), init_8d, 2300);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_8), init_8, 2200);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_8d), init_8d, 2300);
 
   // VCM CONTROL
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_9), init_9, 2400);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_9d), init_9d, 2500);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_9), init_9, 2400);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_9d), init_9d, 2500);
 
   // VCM CONTROL 2
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_10), init_10, 2600);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_10d), init_10d, 2700);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_10), init_10, 2600);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_10d), init_10d, 2700);
 
   // MEMORY ACCESS CONTROL
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_11), init_11, 2800);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_11d), init_11d, 2900);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_11), init_11, 2800);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_11d), init_11d, 2900);
 
   // PIXEL FORMAT
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_12), init_12, 3000);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_12d), init_12d, 3100);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_12), init_12, 3000);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_12d), init_12d, 3100);
 
   // FRAME RATIO CONTROL, STANDARD RGB COLOR
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_13), init_13, 3200);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_13d), init_13d, 3300);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_13), init_13, 3200);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_13d), init_13d, 3300);
 
   // DISPLAY FUNCTION CONTROL
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_14), init_14, 3400);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_14d), init_14d, 3500);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_14), init_14, 3400);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_14d), init_14d, 3500);
 
   // 3GAMMA FUNCTION DISABLE
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_15), init_15, 3600);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_15d), init_15d, 3700);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_15), init_15, 3600);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_15d), init_15d, 3700);
 
   // GAMMA CURVE SELECTED
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_16), init_16, 3800);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_16d), init_16d, 3900);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_16), init_16, 3800);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_16d), init_16d, 3900);
 
   // POSITIVE GAMMA CORRECTION
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_17), init_17, 4000);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_17d), init_17d, 4100);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_17), init_17, 4000);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_17d), init_17d, 4100);
 
   // NEGATIVE GAMMA CORRECTION
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_18), init_18, 4200);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_18d), init_18d, 4300);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_18), init_18, 4200);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_18d), init_18d, 4300);
 
   // EXIT SLEEP
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_19), init_19, 4400);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DELAY, 120 + 1, 0, 4500); // Wait 120 milliseconds
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_19), init_19, 4400);
+  spidma_queue(spi, SPIDMA_DELAY, 120 + 1, 0, 4500); // Wait 120 milliseconds
 
   // TURN ON DISPLAY
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_20), init_20, 4500);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_20), init_20, 4500);
 
   // MADCTL
-  spidma_queue(DISPLAY_SPIP, SPIDMA_COMMAND, sizeof(init_21), init_21, 4600);
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DATA, sizeof(init_21d), init_21d, 4700);
+  spidma_queue(spi, SPIDMA_COMMAND, sizeof(init_21), init_21, 4600);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(init_21d), init_21d, 4700);
 
-  spidma_queue(DISPLAY_SPIP, SPIDMA_DESELECT, 0, 0, 4800);
+  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 4800);
 
   // Run the queue until it's empty
-  while (spidma_check_activity(DISPLAY_SPIP) != 0); // 0 = nothing to do
+  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
 }
 
+
+static uint8_t saw_col_cmd;
+static uint8_t saw_row_cmd;
+static uint8_t saw_write_cmd;
+static uint8_t saw_col_buff[4];
+static uint8_t saw_row_buff[4];
+
+// Hacky DMA synchronous version
+void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+
+  saw_col_buff[0] = (x0 >> 8) & 0xFF;
+  saw_col_buff[1] = x0 & 0xFF;
+  saw_col_buff[2] = (x1 >> 8) & 0xFF;
+  saw_col_buff[3] = x1 & 0xFF;
+  saw_row_buff[0] = (y0 >> 8) & 0xFF;
+  saw_row_buff[1] = y0 & 0xFF;
+  saw_row_buff[2] = (y1 >> 8) & 0xFF;
+  saw_row_buff[3] = y1 & 0xFF;
+  saw_col_cmd = 0x2A;
+  saw_row_cmd = 0x2B;
+  saw_write_cmd = 0x2C;
+
+  // column address set - CASET
+  spidma_queue(spi, SPIDMA_COMMAND, 1, &saw_col_cmd, 10000);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(saw_col_buff), saw_col_buff, 10010);
+
+  // row address set - RASET
+  spidma_queue(spi, SPIDMA_COMMAND, 1, &saw_row_cmd, 10020);
+  spidma_queue(spi, SPIDMA_DATA, sizeof(saw_row_buff), saw_row_buff, 10030);
+
+  // write to RAM
+  spidma_queue(spi, SPIDMA_COMMAND, 1, &saw_write_cmd, 10040);
+
+  // Run the queue until it's empty
+  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+}
+
+#define FILL_RECT_BUFF_SZ 1024
+#define FILL_RECT_BUFF_SHIFT 10
+static uint16_t fill_rect_buff[FILL_RECT_BUFF_SZ];
+
+void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
+  // clipping
+  if((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) return;
+  if((x + w - 1) >= ILI9341_WIDTH) w = ILI9341_WIDTH - x;
+  if((y + h - 1) >= ILI9341_HEIGHT) h = ILI9341_HEIGHT - y;
+
+  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 20000);
+  spidma_ili9341_set_address_window(spi, x, y, x+w-1, y+h-1);
+
+  size_t pos = 0;
+  size_t end_pos = w * h;
+  // We need to flip the bytes of the color we are setting
+  uint16_t inv_color = ((color & 0xFF) << 8) | (color >> 8);
+  uint8_t repeats;
+  size_t remainder;
+
+  size_t buff_end = end_pos > FILL_RECT_BUFF_SZ ? FILL_RECT_BUFF_SZ : end_pos;
+
+  // Set everything we're sending (up to buffer size) first
+  for (pos = 0; pos < buff_end; pos++) {
+      fill_rect_buff[pos] = inv_color;
+  }
+  // Calculate the # of repeats
+  repeats = end_pos >> FILL_RECT_BUFF_SHIFT; // 1500 / 1024 = 1
+
+  // Add all the repeats, if any
+  if (repeats > 0) {
+    remainder = end_pos - (repeats << FILL_RECT_BUFF_SHIFT);
+    spidma_queue_repeats(spi, SPIDMA_DATA, FILL_RECT_BUFF_SZ * 2, (uint8_t *)fill_rect_buff, 20010, repeats - 1);
+    end_pos = remainder;
+  }
+  if (end_pos > 0) {
+    spidma_queue(spi, SPIDMA_DATA, end_pos * 2, (uint8_t *)fill_rect_buff, 20020);
+  }
+
+  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 20030);
+
+  // Run the queue until it's empty
+  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+}
+
+void spidma_ili9341_fill_screen(spidma_config_t *spi, uint16_t color) {
+  spidma_ili9341_fill_rectangle(spi, 0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, color);
+}
+
+
 static void loop() {
-  // Not sure why the original demo code kept DeInit/Init'ing the SPI
-  /*
-    if(HAL_SPI_DeInit(&ILI9341_SPI_PORT) != HAL_OK) {
-        UART_Printf("HAL_SPI_DeInit failed 1!\r\n");
-        return;
-    }
-
-    ILI9341_SPI_PORT.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-
-    if(HAL_SPI_Init(&ILI9341_SPI_PORT) != HAL_OK) {
-        UART_Printf("HAL_SPI_Init failed 1!\r\n");
-        return;
-    }
-    */
-
     // Check border
-    ILI9341_FillScreen(ILI9341_BLACK);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLACK);
 
     for(int x = 0; x < ILI9341_WIDTH; x++) {
         ILI9341_DrawPixel(x, 0, ILI9341_RED);
@@ -232,7 +304,7 @@ static void loop() {
     HAL_Delay(3000);
 
     // Check fonts
-    ILI9341_FillScreen(ILI9341_BLACK);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLACK);
     ILI9341_WriteString(0, 0, "Font_7x10, red on black, lorem ipsum dolor sit amet", Font_7x10, ILI9341_RED, ILI9341_BLACK);
     ILI9341_WriteString(0, 3*10, "Font_11x18, green, lorem ipsum dolor sit amet", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
     ILI9341_WriteString(0, 3*10+3*18, "Font_16x26, blue, lorem ipsum dolor sit amet", Font_16x26, ILI9341_BLUE, ILI9341_BLACK);
@@ -245,35 +317,35 @@ static void loop() {
     HAL_Delay(5000);
 
     // Check colors
-    ILI9341_FillScreen(ILI9341_WHITE);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_WHITE);
     ILI9341_WriteString(0, 0, "WHITE", Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
     HAL_Delay(500);
 
-    ILI9341_FillScreen(ILI9341_BLUE);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLUE);
     ILI9341_WriteString(0, 0, "BLUE", Font_11x18, ILI9341_BLACK, ILI9341_BLUE);
     HAL_Delay(500);
 
-    ILI9341_FillScreen(ILI9341_RED);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_RED);
     ILI9341_WriteString(0, 0, "RED", Font_11x18, ILI9341_BLACK, ILI9341_RED);
     HAL_Delay(500);
 
-    ILI9341_FillScreen(ILI9341_GREEN);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_GREEN);
     ILI9341_WriteString(0, 0, "GREEN", Font_11x18, ILI9341_BLACK, ILI9341_GREEN);
     HAL_Delay(500);
 
-    ILI9341_FillScreen(ILI9341_CYAN);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_CYAN);
     ILI9341_WriteString(0, 0, "CYAN", Font_11x18, ILI9341_BLACK, ILI9341_CYAN);
     HAL_Delay(500);
 
-    ILI9341_FillScreen(ILI9341_MAGENTA);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_MAGENTA);
     ILI9341_WriteString(0, 0, "MAGENTA", Font_11x18, ILI9341_BLACK, ILI9341_MAGENTA);
     HAL_Delay(500);
 
-    ILI9341_FillScreen(ILI9341_YELLOW);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_YELLOW);
     ILI9341_WriteString(0, 0, "YELLOW", Font_11x18, ILI9341_BLACK, ILI9341_YELLOW);
     HAL_Delay(500);
 
-    ILI9341_FillScreen(ILI9341_BLACK);
+    spidma_ili9341_fill_screen(DISPLAY_SPIP, ILI9341_BLACK);
     ILI9341_WriteString(0, 0, "BLACK", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
     HAL_Delay(500);
 
@@ -287,24 +359,7 @@ static void loop() {
     ILI9341_WriteString(0, 0, "Touchpad test.  Draw something!", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
     HAL_Delay(1000);
     ILI9341_FillScreen(ILI9341_BLACK);
-#endif
 
-    // Not sure why the original demo code kept DeInit/Init'ing the SPI
-    /*
-    if(HAL_SPI_DeInit(&ILI9341_SPI_PORT) != HAL_OK) {
-        UART_Printf("HAL_SPI_DeInit failed 2!\r\n");
-        return;
-    }
-
-    ILI9341_SPI_PORT.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-
-    if(HAL_SPI_Init(&ILI9341_SPI_PORT) != HAL_OK) {
-        UART_Printf("HAL_SPI_Init failed 2!\r\n");
-        return;
-    }
-    */
-
-#ifdef INCLUDE_TOUCH
     int npoints = 0;
     while(npoints < 10000) {
         uint16_t x, y;
@@ -342,10 +397,10 @@ void spimain(void) {
   DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
   DISPLAY_SPI.synchronous = 1; // Fake synchronous DMA
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
-  spidma_init(&DISPLAY_SPI);
+  spidma_init(DISPLAY_SPIP);
 
   UART_Printf("Starting init...\r\n");
-  spidma_ili9341_init();
+  spidma_ili9341_init(DISPLAY_SPIP);
 
   UART_Printf("Starting loop...\r\n");
   while (1) {

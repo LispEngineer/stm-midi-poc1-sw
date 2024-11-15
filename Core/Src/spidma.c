@@ -35,6 +35,7 @@ extern UART_HandleTypeDef huart2;
 
 // This is a hack until we figure out how to put it into the spidma_config_t
 static volatile uint32_t is_sending;
+static spidma_entry_t current_sending_entry;
 
 static void spi_transfer_complete(SPI_HandleTypeDef *hdma) {
   HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14); // Green LED
@@ -212,8 +213,8 @@ static inline uint32_t spidma_is_queue_full(spidma_config_t *spi) {
  * We add something by incrementing the tail.
  * We read from the head.
  */
-uint32_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
-                       uint8_t *buff, uint32_t identifier) {
+uint32_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
+                                uint8_t *buff, uint32_t identifier, uint8_t repeats) {
 
   spiq_size_t c = spi->tail_entry;
   spiq_size_t n = next_entry(c);
@@ -234,8 +235,14 @@ uint32_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
   entry->buff = buff;
   entry->buff_size = buff_size;
   entry->identifier = identifier;
+  entry->repeats = repeats;
 
   return 1;
+}
+
+uint32_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
+                       uint8_t *buff, uint32_t identifier) {
+  return spidma_queue_repeats(spi, type, buff_size, buff, identifier, 0);
 }
 
 /*
@@ -284,26 +291,27 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
 
   // Take an entry off the queue and start doing it
   spidma_entry_t *e = &(spi->entries[spi->head_entry]);
+  current_sending_entry = *e;
 
   // Do our action
-  switch (e->type) {
+  switch (current_sending_entry.type) {
   case SPIDMA_DATA:
-    spidma_write_data(spi, e->buff, e->buff_size);
+    spidma_write_data(spi, current_sending_entry.buff, current_sending_entry.buff_size);
     // TODO: Check return value
     retval = 6;
     break;
   case SPIDMA_COMMAND:
-    spidma_write_command(spi, e->buff, e->buff_size);
+    spidma_write_command(spi, current_sending_entry.buff, current_sending_entry.buff_size);
     // TODO: Check return value
     retval = 6;
     break;
   case SPIDMA_UNCHANGED:
-    spidma_write(spi, e->buff, e->buff_size);
+    spidma_write(spi, current_sending_entry.buff, current_sending_entry.buff_size);
     retval = 6;
     break;
   case SPIDMA_DELAY:
     spi->in_delay = 1;
-    spi->delay_until = HAL_GetTick() + e->buff_size;
+    spi->delay_until = HAL_GetTick() + current_sending_entry.buff_size;
     retval = 5;
     break;
   case SPIDMA_RESET:
@@ -326,8 +334,15 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
     retval = 4;
   }
 
-  // Move our head ahead
-  spi->head_entry = next_entry(spi->head_entry);
+  // There is a possible race condition. If the DMA is really small,
+  // it could have finished by the time we get here.
+
+  // Move our head ahead, unless we will repeat this one
+  if (e->repeats == 0) {
+    spi->head_entry = next_entry(spi->head_entry);
+  } else {
+    e->repeats--;
+  }
 
   return retval;
 }
