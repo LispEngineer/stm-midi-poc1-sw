@@ -266,6 +266,17 @@ Looks like it's getting an ORE.
 
 The fix: Move to interrupt-driven receiving.
 
+I have moved to interrupt-driven receiving using LL drivers.
+This does not seem to have fixed the problem. I can still get
+plenty of overrun errors on MIDI (which is slow, ~3kBps)!
+
+Let me try making the interrupt priority higher.
+That seems to have done the trick (setting interrupt
+priority higher), but it interferes with refilling the
+I2S audio buffer and we get crackling.
+Doubling the I2S buffer from 128 to 256 samples seems to
+have helped quite a bit.
+
 ## Break over Serial Console
 
 Interestingly, if I send a BREAK using Putty over the serial

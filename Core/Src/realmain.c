@@ -56,7 +56,7 @@
 #define NOTE_OFF_START "\x80\x3C\x40"
 #define NOTE_OFF_START_LEN 3
 
-#define I2S_BUFFER_SIZE 128
+#define I2S_BUFFER_SIZE 256
 
 const uint8_t NOTE_ON[] = NOTE_ON_START;
 const uint8_t NOTE_OFF[] = NOTE_OFF_START;
