@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "main.h"
 #include "spidma.h"
 #include "fonts.h"
@@ -179,37 +180,52 @@ void spidma_ili9341_init(spidma_config_t *spi) {
 }
 
 
-static uint8_t saw_col_cmd;
-static uint8_t saw_row_cmd;
-static uint8_t saw_write_cmd;
-static uint8_t saw_col_buff[4];
-static uint8_t saw_row_buff[4];
-
+/*
+ * Allocates a memory buffer and sets it to auto-free, to set the
+ * next pixel data write to a certain rectangle.
 // Hacky DMA synchronous version
+ */
 void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 
-  saw_col_buff[0] = (x0 >> 8) & 0xFF;
-  saw_col_buff[1] = x0 & 0xFF;
-  saw_col_buff[2] = (x1 >> 8) & 0xFF;
-  saw_col_buff[3] = x1 & 0xFF;
-  saw_row_buff[0] = (y0 >> 8) & 0xFF;
-  saw_row_buff[1] = y0 & 0xFF;
-  saw_row_buff[2] = (y1 >> 8) & 0xFF;
-  saw_row_buff[3] = y1 & 0xFF;
-  saw_col_cmd = 0x2A;
-  saw_row_cmd = 0x2B;
-  saw_write_cmd = 0x2C;
+  // We allocate a buffer for the entire multi-step transaction and free it
+  // after the last bit of it is used up.
+  const size_t SAW_BUFF_SIZE = 1 + 4 + 1 + 4 + 1;
+  uint8_t *buff = (uint8_t *)malloc(SAW_BUFF_SIZE);
+
+  // Check return value for memory exhaustion
+  if (NULL == buff) {
+    // Toggle the blue LED
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    return;
+  }
+
+  // Note that we use a lot of magic numbers here, sorry
+  buff[1] = 0x2A; // column address set - CASET
+  buff[2] = (x0 >> 8) & 0xFF;
+  buff[3] = x0 & 0xFF;
+  buff[4] = (x1 >> 8) & 0xFF;
+  buff[5] = x1 & 0xFF;
+  buff[6] = 0x2B; // row address set - RASET
+  buff[7] = (y0 >> 8) & 0xFF;
+  buff[8] = y0 & 0xFF;
+  buff[9] = (y1 >> 8) & 0xFF;
+  buff[10] = y1 & 0xFF;
+  // We send the head of the buffer as the LAST command
+  // so that the pointer to be freed is correct.
+  buff[0] = 0x2C; // write to RAM
 
   // column address set - CASET
-  spidma_queue(spi, SPIDMA_COMMAND, 1, &saw_col_cmd, 10000);
-  spidma_queue(spi, SPIDMA_DATA, sizeof(saw_col_buff), saw_col_buff, 10010);
+  spidma_queue(spi, SPIDMA_COMMAND, 1, buff + 1, 10000);
+  spidma_queue(spi, SPIDMA_DATA, 4, buff + 2, 10010);
 
   // row address set - RASET
-  spidma_queue(spi, SPIDMA_COMMAND, 1, &saw_row_cmd, 10020);
-  spidma_queue(spi, SPIDMA_DATA, sizeof(saw_row_buff), saw_row_buff, 10030);
+  spidma_queue(spi, SPIDMA_COMMAND, 1, buff + 6, 10020);
+  spidma_queue(spi, SPIDMA_DATA, 4, buff + 7, 10030);
 
   // write to RAM
-  spidma_queue(spi, SPIDMA_COMMAND, 1, &saw_write_cmd, 10040);
+  // no repeats, and yes please free this buffer at the end.
+  // (Hence, this must be the original malloc'd buffer!)
+  spidma_queue_repeats(spi, SPIDMA_COMMAND, 1, buff, 10040, 0, 1);
 
   // Run the queue until it's empty
   while (spidma_check_activity(spi) != 0); // 0 = nothing to do
