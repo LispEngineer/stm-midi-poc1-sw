@@ -57,12 +57,13 @@ typedef enum spidma_activity_status {
 } spidma_activity_status_t;
 
 typedef enum spidma_return_value {
-  SDRV_QUEUE_FULL,
+  SDRV_FULL,
   SDRV_OK,
-  SDRV_QUEUE_IGNORED, // Usually because we asked to queue something invalid like a NULL to free
+  SDRV_IGNORED, // Usually because we asked to queue something invalid like a NULL to free, or a NULL input value
   SDRV_TOO_BIG,
   SDRV_DMA_BUSY,
-  SDRV_HAL_ERROR // HAL error - see last_hal_error
+  SDRV_HAL_ERROR, // HAL error - see last_hal_error
+  SDRV_IN_USE // This SPI channel is already in use (init error)
 } spidma_return_value_t;
 
 
@@ -98,6 +99,9 @@ typedef struct spidma_entry {
  * data RAM of the microcontroller because it will be
  * accessed several times during an SPI transfer complete
  * interrupt.
+ * TODO: We may have to split the queues out so they can
+ * stay in other parts of RAM so as to reduce the size of
+ * this data structure in fast data RAM.
  */
 typedef struct spidma_config {
   // The pins and banks for these SPI display signals:
@@ -141,6 +145,9 @@ typedef struct spidma_config {
   uint8_t  in_delay;
   uint32_t delay_until;
 
+  // Are we currently sending something over DMA?
+  volatile uint32_t is_sending;
+
   // Our freeing ring buffer - memory we will free
   // identified in an interrupt and actually free'd later
   void *      free_entries[NUM_SPI_ENTRIES];
@@ -159,7 +166,7 @@ typedef struct spidma_config {
 
 
 // Required to be called prior to anything else
-void spidma_init(spidma_config_t *);
+spidma_return_value_t spidma_init(spidma_config_t *);
 
 // Functions to handle the CS and RESET pins
 void spidma_select(spidma_config_t *);

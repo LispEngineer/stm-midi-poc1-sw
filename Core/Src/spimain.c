@@ -223,9 +223,13 @@ void spimain(void) {
   DISPLAY_SPI.use_reset = 1;
   DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
-  spidma_init(DISPLAY_SPIP);
 
-  console_printf("Starting init...\r\n");
+  if (spidma_init(DISPLAY_SPIP) != SDRV_OK) {
+    console_printf("spidma_init failed\r\n");
+    while (1) {}
+  }
+
+  console_printf("Starting ILI9341 init...\r\n");
   spidma_ili9341_init(DISPLAY_SPIP);
   spidma_empty_queue(DISPLAY_SPIP);
 

@@ -57,9 +57,17 @@
 // Our console U(S)ART
 extern UART_HandleTypeDef huart2;
 
-// This is a hack until we figure out how to put it into the spidma_config_t
-static volatile uint32_t is_sending = 0;
-static spidma_config_t *current_sending_spi = NULL; // This would also initialized to NULL
+typedef struct spidma_callback_map_entry {
+  SPI_HandleTypeDef *spi_handle;
+  spidma_config_t *spidma_handle;
+} spidma_callback_map_entry_t;
+
+#define NUM_SPI_CHANNELS 4
+/* Our callbacks only have n SPI_HandleTypeDef in the HAL implementation,
+ * so we have to map that to our spidma_config_t somehow.
+ */
+// TODO: Make this live in fast data RAM
+static spidma_callback_map_entry_t callback_map[NUM_SPI_CHANNELS] = { 0 };
 
 /*
  * Callback function when an SPI DMA transfer has completed,
@@ -71,26 +79,35 @@ static spidma_config_t *current_sending_spi = NULL; // This would also initializ
  * We gratituously blink an LED for now just to show it working.
  * FIXME: Remove LED blinking.
  */
+// TODO: Make this live in fast code RAM
 static void spi_transfer_complete(SPI_HandleTypeDef *hspi) {
+  spidma_config_t *spi = NULL;
+
+  // Find our spidma_config_t from hspi
+  // (hopefully the optimizer will unroll this loop)
+  for (int i = 0; i < NUM_SPI_CHANNELS; i++) {
+    if (callback_map[i].spi_handle == hspi) {
+      spi = callback_map[i].spidma_handle;
+      break;
+    }
+  }
 
   // If we're not the sending SPI interrupt, do nothing
-  if (current_sending_spi == NULL || hspi != current_sending_spi->spi) {
+  if (spi == NULL) {
     return;
   }
 
   // If the user wants to free this memory, queue it for freeing
   // in the non-interrupt thread
-  if (current_sending_spi->current_entry.repeats == 0 &&
-      current_sending_spi->current_entry.should_free) {
-    spidma_free_queue(current_sending_spi, current_sending_spi->current_entry.buff);
+  if (spi->current_entry.repeats == 0 && spi->current_entry.should_free) {
+    spidma_free_queue(spi, spi->current_entry.buff);
   }
 
   // Flash or transmit stuff for gratuitous purposes
   HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14); // Green LED
   // HAL_UART_Transmit(&huart2, (uint8_t *)"+", 1, HAL_MAX_DELAY);
 
-  is_sending = 0;
-  current_sending_spi = NULL;
+  spi->is_sending = 0;
 }
 
 /**
@@ -100,8 +117,11 @@ static void spi_transfer_complete(SPI_HandleTypeDef *hspi) {
  * freeing queue, and in_delay flag.
  *
  * There can be only ONE spidma_config_t for each
- * (SPI_HandleTypeDef *) because we (may) use that to look up the
+ * (SPI_HandleTypeDef *) because we use that to look up the
  * spidma_config_t later in an interrupt function.
+ *
+ * If the return value is not SDRV_OK, then you can't use
+ * these routines!
  *
  * The caller is expected to have initialized these fields:
   DISPLAY_SPI.bank_cs = GPIO_PA15_SPI2_CS_GPIO_Port;
@@ -115,13 +135,38 @@ static void spi_transfer_complete(SPI_HandleTypeDef *hspi) {
   DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
  */
-void spidma_init(spidma_config_t *spi) {
+spidma_return_value_t spidma_init(spidma_config_t *spi) {
   // TODO: Make this a closure that knows which spidma_config_t was in use
   // (or at the least, a lookup table from the hspi to the spidma_config_t)
+
+  if (NULL == spi) {
+    return SDRV_IGNORED;
+  }
+
+  // Update our callback map so we can handle this new spidma_config_t
+  int i;
+  for (i = 0; i < NUM_SPI_CHANNELS; i++) {
+    if (callback_map[i].spi_handle == spi->spi) {
+      return SDRV_IN_USE;
+    }
+  }
+  for (i = 0; i < NUM_SPI_CHANNELS; i++) {
+    if (callback_map[i].spi_handle == NULL) {
+      // Allocate this one
+      callback_map[i].spi_handle = spi->spi;
+      callback_map[i].spidma_handle = spi;
+      break;
+    }
+  }
+  if (i >= NUM_SPI_CHANNELS) {
+    // No available entry found
+    return SDRV_FULL;
+  }
+
+  // And register the callback
   HAL_SPI_RegisterCallback(spi->spi, HAL_SPI_TX_COMPLETE_CB_ID, spi_transfer_complete);
   // TODO: Check return value
-  is_sending = 0;
-  current_sending_spi = NULL;
+  spi->is_sending = 0;
 
   // Set up the queues
   spi->head_entry = 0;
@@ -138,7 +183,11 @@ void spidma_init(spidma_config_t *spi) {
 
   // Set up the status flags
   spi->in_delay = 0;
+
+  return SDRV_OK;
 }
+
+// TODO: Write spidma_deinit()
 
 /** Set the chip select for this SPI device
  * (active low).
@@ -178,7 +227,7 @@ inline void spidma_dereset(spidma_config_t *spi) {
 
 /** Returns non-zero if DMA channel is ready to send. */
 bool spidma_is_dma_ready(spidma_config_t *spi) {
-  return !is_sending;
+  return !spi->is_sending;
   // return HAL_DMA_GetState(spi->dma_tx) == HAL_DMA_STATE_READY;
 }
 
@@ -209,8 +258,7 @@ spidma_return_value_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t b
   }
 
   // Start a DMA transfer; set our status for the send complete callback
-  is_sending = 1;
-  current_sending_spi = spi;
+  spi->is_sending = 1;
   HAL_StatusTypeDef retval = HAL_SPI_Transmit_DMA(spi->spi, buff, buff_size);
 
   if (retval == HAL_OK) {
@@ -219,8 +267,7 @@ spidma_return_value_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t b
 
   // One of the HAL-not-OK values shifted to the next nibble
   spi->last_hal_error = retval;
-  is_sending = 0;
-  current_sending_spi = NULL;
+  spi->is_sending = 0;
   return SDRV_HAL_ERROR;
 }
 
@@ -287,7 +334,7 @@ static spidma_return_value_t spidma_backup_free_queue(spidma_config_t *spi, void
   if (NULL == buff) {
     // We do not add nulls, even if requested, but we pretend
     // it worked
-    return SDRV_QUEUE_IGNORED;
+    return SDRV_IGNORED;
   }
 
   spiq_size_t c = spi->tail_backup_free;
@@ -296,7 +343,7 @@ static spidma_return_value_t spidma_backup_free_queue(spidma_config_t *spi, void
   // Check if full
   if (spi->head_backup_free == n) {
     spi->backup_free_queue_failures++;
-    return SDRV_QUEUE_FULL;
+    return SDRV_FULL;
   }
   // Add entry
   spi->backup_free_entries[c] = buff;
@@ -358,7 +405,7 @@ spidma_return_value_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, u
       spidma_return_value_t queued = spidma_backup_free_queue(spi, buff);
       // TODO: Check if that worked, return a special message?
     }
-    return SDRV_QUEUE_FULL;
+    return SDRV_FULL;
   }
 
   // Update the tail
@@ -394,7 +441,7 @@ spidma_return_value_t spidma_free_queue(spidma_config_t *spi, void *buff) {
   if (NULL == buff) {
     // We do not add nulls, even if requested, but we pretend
     // it worked
-    return SDRV_QUEUE_IGNORED;
+    return SDRV_IGNORED;
   }
 
   spiq_size_t c = spi->tail_free;
@@ -406,7 +453,7 @@ spidma_return_value_t spidma_free_queue(spidma_config_t *spi, void *buff) {
     // TODO: Add this to the backup free queue instead?
     // If that also fails, we have big problems and the
     // caller has to deal with it.
-    return SDRV_QUEUE_FULL;
+    return SDRV_FULL;
   }
   // Add entry
   spi->free_entries[c] = buff;
@@ -482,7 +529,7 @@ spidma_activity_status_t spidma_check_activity(spidma_config_t *spi) {
   }
 
   // Check if we can do anything
-  if (is_sending) {
+  if (spi->is_sending) {
     return SDAS_DMA_BUSY;
   }
 

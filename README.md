@@ -244,7 +244,7 @@ Note one board is missing J5 so easy to differentiate.
 
 # Debugging Notes
 
-## Interesting bug
+## Interesting bug - Fixed
 
 In this current version, after it is running a while, it draws fewer and fewer
 characters using the `...write_string()` function. For example, it only shows
