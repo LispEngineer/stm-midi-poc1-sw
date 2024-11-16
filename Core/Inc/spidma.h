@@ -132,4 +132,6 @@ uint32_t spidma_check_activity(spidma_config_t *spi);
 uint32_t spidma_free_queue(spidma_config_t *spi, void *buff);
 void *spidma_free_dequeue(spidma_config_t *spi);
 
+// TODO: Function to drain the SPI queue in a busy loop
+
 #endif /* INC_SPIDMA_H_ */

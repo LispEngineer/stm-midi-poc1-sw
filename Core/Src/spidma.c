@@ -48,6 +48,16 @@ extern UART_HandleTypeDef huart2;
 static volatile uint32_t is_sending = 0;
 static spidma_config_t *current_sending_spi = NULL; // This would also initialized to NULL
 
+/*
+ * Callback function when an SPI DMA transfer has completed,
+ * mediated by the STM32 HAL. This is an interrupt handler.
+ *
+ * If the current send wants us to do a memory free(), we
+ * queue that up for later processing.
+ *
+ * We gratituously blink an LED for now just to show it working.
+ * FIXME: Remove LED blinking.
+ */
 static void spi_transfer_complete(SPI_HandleTypeDef *hspi) {
 
   // If we're not the sending SPI interrupt, do nothing
@@ -239,10 +249,19 @@ void spidma_wait_for_completion(spidma_config_t *spi) {
 ///////////////////////////////////////////////////////////////////////////////////
 // Sending queue functions
 
+/*
+ * Calculate the next queue entry from the current one.
+ * We require the queue size to be a power of two so we can
+ * do our modulo wrap-around with a simple AND operator.
+ */
 static inline spiq_size_t next_entry(spiq_size_t x) {
   return (spiq_size_t)((x + (spiq_size_t)1) & SPI_ENTRY_MASK);
 }
 
+/*
+ * Checks if the DMA sending queue is full. It's full when
+ * the tail is directly behind the head.
+ */
 static inline uint32_t spidma_is_queue_full(spidma_config_t *spi) {
   return spi->head_entry == next_entry(spi->tail_entry);
 }
@@ -343,6 +362,7 @@ void *spidma_free_dequeue(spidma_config_t *spi) {
  * 5 - delay begun
  * 6 - SPI DMA transfer begun
  * 7 - SPI aux pin set (Select, Reset)
+ * FIXME: Make these return values into an enum
  */
 uint32_t spidma_check_activity(spidma_config_t *spi) {
   uint32_t nothing_to_do = 0;
@@ -438,13 +458,4 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
 
   return retval;
 }
-
-
-
-
-
-
-
-
-
 
