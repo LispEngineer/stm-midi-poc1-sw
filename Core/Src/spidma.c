@@ -461,9 +461,17 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
 
 /*
  * Keep calling check_activity until we've got no more activity.
+ * Returns number of checks it took.
  */
 uint32_t spidma_empty_queue(spidma_config_t *spi) {
   // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  uint32_t retval = 0;
+
+  // 0 = nothing to do
+  while (spidma_check_activity(spi) != 0) {
+    retval++;
+  }
+
+  return retval;
 }
 

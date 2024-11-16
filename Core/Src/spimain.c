@@ -44,69 +44,95 @@ static void UART_Printf(const char* fmt, ...) {
 
 
 static void loop(spidma_config_t *spi) {
+  spidma_queue(spi, SPIDMA_SELECT, 0, NULL, 1000000);
+  spidma_empty_queue(spi);
+
   // Draw black screen with red border
   spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
-
+  spidma_empty_queue(spi);
   for(int x = 0; x < ILI9341_WIDTH; x++) {
     spidma_ili9341_draw_pixel(spi, x, 0, ILI9341_RED);
     spidma_ili9341_draw_pixel(spi, x, ILI9341_HEIGHT-1, ILI9341_RED);
+    if ((x & 0x7) == 0) {
+      spidma_empty_queue(spi);
+    }
   }
+  spidma_empty_queue(spi);
 
   for(int y = 0; y < ILI9341_HEIGHT; y++) {
     spidma_ili9341_draw_pixel(spi, 0, y, ILI9341_RED);
     spidma_ili9341_draw_pixel(spi, ILI9341_WIDTH-1, y, ILI9341_RED);
+    if ((y & 0x7) == 0) {
+      spidma_empty_queue(spi);
+    }
   }
+  spidma_empty_queue(spi);
   HAL_Delay(1000);
 
   // Check fonts
   spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
+  spidma_empty_queue(spi);
   spidma_ili9341_write_string(spi, 0, 0, "Font_7x10, red on black, lorem ipsum dolor sit amet", Font_7x10, ILI9341_RED, ILI9341_BLACK);
+  spidma_empty_queue(spi);
   spidma_ili9341_write_string(spi, 0, 3*10, "Font_11x18, green, lorem ipsum dolor sit amet", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
+  spidma_empty_queue(spi);
   spidma_ili9341_write_string(spi, 0, 3*10+3*18, "Font_16x26, blue, lorem ipsum dolor sit amet", Font_16x26, ILI9341_BLUE, ILI9341_BLACK);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_invert(spi, true);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
   spidma_ili9341_invert(spi, false);
+  spidma_empty_queue(spi);
   HAL_Delay(1000);
 
   // Check colors
   spidma_ili9341_fill_screen(spi, ILI9341_WHITE);
   spidma_ili9341_write_string(spi, 0, 0, "WHITE", Font_11x18, ILI9341_BLACK, ILI9341_WHITE);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_fill_screen(spi, ILI9341_BLUE);
   spidma_ili9341_write_string(spi, 0, 0, "BLUE", Font_11x18, ILI9341_BLACK, ILI9341_BLUE);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_fill_screen(spi, ILI9341_RED);
   spidma_ili9341_write_string(spi, 0, 0, "RED", Font_11x18, ILI9341_BLACK, ILI9341_RED);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_fill_screen(spi, ILI9341_GREEN);
   spidma_ili9341_write_string(spi, 0, 0, "GREEN", Font_11x18, ILI9341_BLACK, ILI9341_GREEN);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_fill_screen(spi, ILI9341_CYAN);
   spidma_ili9341_write_string(spi, 0, 0, "CYAN", Font_11x18, ILI9341_BLACK, ILI9341_CYAN);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_fill_screen(spi, ILI9341_MAGENTA);
   spidma_ili9341_write_string(spi, 0, 0, "MAGENTA", Font_11x18, ILI9341_BLACK, ILI9341_MAGENTA);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_fill_screen(spi, ILI9341_YELLOW);
   spidma_ili9341_write_string(spi, 0, 0, "YELLOW", Font_11x18, ILI9341_BLACK, ILI9341_YELLOW);
+  spidma_empty_queue(spi);
   HAL_Delay(500);
 
   spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
   spidma_ili9341_write_string(spi, 0, 0, "BLACK", Font_11x18, ILI9341_WHITE, ILI9341_BLACK);
+  spidma_empty_queue(spi);
   HAL_Delay(1000);
 
   UART_Printf("Drawing image...\r\n");
   // Last argument is to copy the data before sending it.
   // If the data is coming from flash, we should do that.
   spidma_ili9341_draw_image(spi, (ILI9341_WIDTH - 240) / 2, (ILI9341_HEIGHT - 240) / 2, 240, 240, (const uint16_t*)test_img_240x240, 1);
+  spidma_empty_queue(spi);
   UART_Printf("...done.\r\n");
   HAL_Delay(1500);
 
@@ -127,6 +153,8 @@ static void loop(spidma_config_t *spi) {
   }
 #endif
 
+  spidma_queue(spi, SPIDMA_DESELECT, 0, NULL, 1000100);
+  spidma_empty_queue(spi);
   UART_Printf("loop() done\r\n");
 }
 
@@ -148,6 +176,7 @@ void spimain(void) {
 
   UART_Printf("Starting init...\r\n");
   spidma_ili9341_init(DISPLAY_SPIP);
+  spidma_empty_queue(DISPLAY_SPIP);
 
   UART_Printf("Starting loop...\r\n");
   while (1) {

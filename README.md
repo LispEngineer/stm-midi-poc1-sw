@@ -242,4 +242,18 @@ Note one board is missing J5 so easy to differentiate.
   * Nucleo boards use UART3 (oops!)
   * (But note the console UART works)
 
-## Debugging Notes
+# Debugging Notes
+
+## Interesting bug
+
+In this current version, after it is running a while, it draws fewer and fewer
+characters using the `...write_string()` function. For example, it only shows
+three characters for the color names. And a few characters for the full strings:
+
+```
+Font_7x10, red on bla
+Font_11x
+Font
+```
+
+Not sure what's going on.

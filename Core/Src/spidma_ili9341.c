@@ -73,10 +73,14 @@ static uint8_t init_d[]  = {  };
 */
 
 /*
- * Queue SPIDMA commands to fully initialize the ILI9341 display,
- * then execute them synchronously by dequeuing all of them.
+ * Queue SPIDMA commands to fully initialize the ILI9341 display.
  * This also means that the SPIDMA queue needs to be deep enough
  * (which is some 40-odd right now).
+ *
+ * Selects the display but leaves the SPI display unselected.
+ *
+ * NOTE: After this is called, you should probably run these commands
+ * all synchronously by calling: spidma_empty_queue()
  *
  * Display initialization based upon https://github.com/afiskon/stm32-ili9341 .
  */
@@ -182,15 +186,11 @@ void spidma_ili9341_init(spidma_config_t *spi) {
   spidma_queue(spi, SPIDMA_DATA, sizeof(init_21d), init_21d, 4700);
 
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 4800);
-
-  spidma_empty_queue(spi);
 }
 
 
 /*
  * Set the next data write to a certain rectangle of pixel memory.
- *
- * NOTE: Hacky DMA synchronous version
  */
 void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 
@@ -233,8 +233,6 @@ void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16
   // no repeats, and yes please free this buffer at the end.
   // (Hence, this must be the original malloc'd buffer!)
   spidma_queue_repeats(spi, SPIDMA_COMMAND, 1, buff, 10040, 0, 1);
-
-  spidma_empty_queue(spi);
 }
 
 // The size of this buffer must be:
@@ -251,7 +249,7 @@ void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16
 /*
  * Fill a rectangle of the display with a fixed color.
  *
- * NOTE: Hacky DMA synchronous version
+ * Does not queue any DE/SELECT commands.
  */
 void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
   // clipping
@@ -259,7 +257,6 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   if ((x + w - 1) >= ILI9341_WIDTH) w = ILI9341_WIDTH - x;
   if ((y + h - 1) >= ILI9341_HEIGHT) h = ILI9341_HEIGHT - y;
 
-  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 20000);
   spidma_ili9341_set_address_window(spi, x, y, x+w-1, y+h-1);
 
   size_t pos = 0;
@@ -301,10 +298,6 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   if (remainder > 0) {
     spidma_queue_repeats(spi, SPIDMA_DATA, remainder * 2, (uint8_t *)fill_rect_buff, 20020, 0, 1); // No repeats & auto-free
   }
-
-  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 20030);
-
-  spidma_empty_queue(spi);
 }
 
 /*
@@ -334,8 +327,6 @@ void spidma_ili9341_draw_pixel(spidma_config_t *spi, uint16_t x, uint16_t y, uin
  * with the specified foreground and background colors.
  * The font size is specified in FontDef. This allocates w * h * 2 bytes
  * of memory.
- *
- * NOTE: Hacky DMA synchronous version
  */
 // TODO: make this take a buffer to use to write to.
 // If not provided, then allocate one and auto-free it.
@@ -375,8 +366,6 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
 
   spidma_ili9341_set_address_window(spi, x, y, x + font.width - 1, y + font.height - 1);
   spidma_queue_repeats(spi, SPIDMA_DATA, buff_size, (uint8_t *)buff, 30000, 0, 1); // Don't repeat & auto-free
-
-  spidma_empty_queue(spi);
 }
 
 /*
@@ -388,16 +377,19 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
  * fully on the screen - the caller needs to check that
  * (new y + font.height > screen height) means off the screen
  *
+ * Does not queue any DE/SELECT commands.
+ *
  * Realize that this could use a lot of RAM and fill up
  * the SPI transmit queue if we have a lot of characters.
  * So don't send too many characters at a time...
  *
- * NOTE: Hacky DMA synchronous version
+ * TODO: Make this write the string by lines, using a single buffer
+ * per line. Render the characters into a line buffer, and do a single DMA
+ * transfer of that buffer to the screen.
+ *
  */
 uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
                                         const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
-  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 40000);
-
   while (*str) {
     if (x + font.width >= ILI9341_WIDTH) {
       x = 0;
@@ -418,10 +410,6 @@ uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t 
     x += font.width;
     str++;
   }
-
-  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 40010);
-
-  spidma_empty_queue(spi);
 
   // Return the next character position - which may be off the screen
   return (y << 16) | x;
@@ -463,7 +451,6 @@ void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
     source = (uint8_t *)data;
   }
 
-  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 50000);
   spidma_ili9341_set_address_window(spi, x, y, x + w - 1, y + h - 1);
 
   // We can only send DMA data in a certain chunk size at a time.
@@ -475,9 +462,6 @@ void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
     data_bytes -= cur_chunk;
   }
 
-  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 50020);
-
-  spidma_empty_queue(spi);
 }
 
 
@@ -486,13 +470,9 @@ static uint8_t ili9341_invert_off = 0x20; // INVOFF
 
 /*
  * Send a command to invert or uninvert the ILI9341 display.
- *
- * NOTE: Hacky DMA synchronous version
  */
 void spidma_ili9341_invert(spidma_config_t *spi, bool invert) {
-  // spidma_queue(spi, SPIDMA_SELECT, 0, 0, 60000);
   spidma_queue(spi, SPIDMA_COMMAND, 1, invert ? &ili9341_invert_on : &ili9341_invert_off, 60010);
-  // spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 60020);
 
   // Run the queue until it's empty
   spidma_empty_queue(spi);
