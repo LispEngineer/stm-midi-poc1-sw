@@ -130,6 +130,8 @@ void spidma_wait_for_completion(spidma_config_t *);
 uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t); // 0 repeats, no freeing
 uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *,
                                 uint32_t, uint8_t repeats, uint8_t should_free);
+spiq_size_t spidma_queue_length(spidma_config_t *spi);
+
 
 // This needs to be called regularly to keep the SPI queue emptied.
 uint32_t spidma_check_activity(spidma_config_t *spi);

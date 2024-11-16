@@ -475,3 +475,7 @@ uint32_t spidma_empty_queue(spidma_config_t *spi) {
   return retval;
 }
 
+spiq_size_t spidma_queue_length(spidma_config_t *spi) {
+  return (spi->head_entry - spi->tail_entry) & SPI_ENTRY_MASK;
+}
+

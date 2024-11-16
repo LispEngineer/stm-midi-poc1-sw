@@ -42,6 +42,10 @@ static void UART_Printf(const char* fmt, ...) {
     va_end(args);
 }
 
+static void print_queue_length(spidma_config_t *spi, int id) {
+  UART_Printf("%d ql: %d\r\n", id, (int)spidma_queue_length(spi));
+}
+
 
 static void loop(spidma_config_t *spi) {
   spidma_queue(spi, SPIDMA_SELECT, 0, NULL, 1000000);
@@ -71,13 +75,21 @@ static void loop(spidma_config_t *spi) {
 
   // Check fonts
   spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
+  print_queue_length(spi, 1000);
   spidma_empty_queue(spi);
+  print_queue_length(spi, 1001); // Should be 0
   spidma_ili9341_write_string(spi, 0, 0, "Font_7x10, red on black, lorem ipsum dolor sit amet", Font_7x10, ILI9341_RED, ILI9341_BLACK);
+  print_queue_length(spi, 1002);
   spidma_empty_queue(spi);
+  print_queue_length(spi, 1003); // Should be 0
   spidma_ili9341_write_string(spi, 0, 3*10, "Font_11x18, green, lorem ipsum dolor sit amet", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
+  print_queue_length(spi, 1004);
   spidma_empty_queue(spi);
+  print_queue_length(spi, 1005); // Should be 0
   spidma_ili9341_write_string(spi, 0, 3*10+3*18, "Font_16x26, blue, lorem ipsum dolor sit amet", Font_16x26, ILI9341_BLUE, ILI9341_BLACK);
+  print_queue_length(spi, 1006);
   spidma_empty_queue(spi);
+  print_queue_length(spi, 1007); // Should be 0
   HAL_Delay(500);
 
   spidma_ili9341_invert(spi, true);

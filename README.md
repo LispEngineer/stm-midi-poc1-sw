@@ -256,4 +256,7 @@ Font_11x
 Font
 ```
 
-Not sure what's going on.
+The memory not allocateable LED is on. Could it be memory fragmentation?
+Memory not being freed?
+
+Not yet debugged.
