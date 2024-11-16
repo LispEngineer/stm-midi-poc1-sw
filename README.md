@@ -244,35 +244,29 @@ Note one board is missing J5 so easy to differentiate.
 
 # Debugging Notes
 
-## Interesting bug - Fixed
+## MIDI Input Fails after a while
 
-In this current version, after it is running a while, it draws fewer and fewer
-characters using the `...write_string()` function. For example, it only shows
-three characters for the color names. And a few characters for the full strings:
+For some unknown reason, the MIDI input now fails after a while.
 
-```
-Font_7x10, red on bla
-Font_11x
-Font
-```
+I tried it with MIDI1 & 2 (USART1 & 3), and my external MIDI
+adapter on USART6. 
 
-The memory not allocateable LED is on. Could it be memory fragmentation?
-Memory not being freed?
+It does not show any MIDI overrun errors.
 
-I see the problem: When we allocate a buffer, we expect it to be free'd
-automatically, but if the SPI queue size is exceeded, then it won't get free'd!
-We need a way to ensure freeing of possibly used memory even when the SPI
-queue is not empty, so add a backup free queue that will only be free'd
-once the SPI queue is entirely empty.
+Currently a complete mystery why this is happening.
 
-So, the question is, if the auto-free is set but we couldn't queue something,
-should the SPI mechanism be responsible for handling the freeing? I think so.
+Seems like it's getting some error condition as these make it work again:
+  LL_USART_ClearFlag_LBD(MIDI1_UART);
+  LL_USART_ClearFlag_PE(MIDI1_UART);
+  LL_USART_ClearFlag_NE(MIDI1_UART);
+  LL_USART_ClearFlag_ORE(MIDI1_UART);
+  LL_USART_ClearFlag_IDLE(MIDI1_UART);
 
-FIXED: Any request for auto-freeing that could not be queued is now queued
-into a backup freeing queue, and whenever the SPI queue is empty we free
-everything in this backup free queue. While we're at it, we also
-add free requests to the backup free queue if we can't add them to the main
-freeing queue.
+Looks like it's getting an ORE.
 
-TODO: Also, don't attempt to alloc and queue stuff if you don't have enough room
-in the queue!
+The fix: Move to interrupt-driven receiving.
+
+## Break over Serial Console
+
+Interestingly, if I send a BREAK using Putty over the serial
+console at 460,800 bps, it resets the Microcontroller!

@@ -55,7 +55,7 @@
 #include "spidma.h"
 
 // Our console U(S)ART
-extern UART_HandleTypeDef huart2;
+// extern UART_HandleTypeDef huart2;
 
 typedef struct spidma_callback_map_entry {
   SPI_HandleTypeDef *spi_handle;
@@ -404,7 +404,7 @@ spidma_return_value_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, u
       // (Sometimes a buffer is used for multiple queue
       // entries and is only marked for freeing in the last
       // use queue'd.)
-      spidma_return_value_t queued = spidma_backup_free_queue(spi, buff);
+      /* spidma_return_value_t queued = */ spidma_backup_free_queue(spi, buff);
       // TODO: Check if that worked, return a special message?
     }
     return SDRV_FULL;

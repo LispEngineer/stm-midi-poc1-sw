@@ -35,7 +35,7 @@
 #  define FAST_DATA
 #endif
 
-#define SOFTWARE_VERSION "12"
+#define SOFTWARE_VERSION "13"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
@@ -46,6 +46,7 @@
                      "\ter.  Start/stop tone\r\n" \
                      "\tdf.  Send note on/off\r\n" \
                      "\ta.   Audio mute\r\n" \
+                     "\tx.   Reinit UARTs\r\n" \
                      "\t(.   Mem\r\n" \
                      "\t).   Stack\r\n" \
                      "\t~.   Menu"
@@ -60,22 +61,23 @@
 const uint8_t NOTE_ON[] = NOTE_ON_START;
 const uint8_t NOTE_OFF[] = NOTE_OFF_START;
 
-#define MIDI1_UART   huart3 // huart6 works with ubld.it & my TLP2362/ISOM8710 circuits
-#define MIDI2_UART   huart1
-#define CONSOLE_UART huart2
+#define MIDI1_UART   USART6 // Low level USART - HAL would be huart6 // huart6 works with ubld.it & my TLP2362/ISOM8710 circuits
+#define MIDI2_UART   huart3
+#define CONSOLE_UART USART2 // Low level USART - HAL would be huart2
 #define SOUND1       hi2s1
 #define DISPLAY_SPI  hspi2
 #define DISPLAY_DMA  hdma_spi2_tx
 
 // From main.c
-extern UART_HandleTypeDef CONSOLE_UART; // Serial Console
-extern UART_HandleTypeDef MIDI1_UART; // MIDI 1
+// These two are needed if we use HAL UARTs
+//extern UART_HandleTypeDef CONSOLE_UART; // Serial Console
+//extern UART_HandleTypeDef MIDI1_UART; // MIDI 1
 extern I2S_HandleTypeDef SOUND1;
 extern SPI_HandleTypeDef DISPLAY_SPI;
 extern DMA_HandleTypeDef DISPLAY_DMA;
 
 static uint32_t overrun_errors = 0;
-static uint32_t uart_error_callbacks = 0;
+// static uint32_t uart_error_callbacks = 0;
 static uint32_t usart3_interrupts = 0;
 static uint32_t midi_overrun_errors = 0;
 static uint32_t loops_per_tick;
@@ -126,6 +128,12 @@ void init_midi_buffers() {
   midi_stream_init(&midi_stream_0);
 }
 
+/** Queues data to be sent over our serial output. */
+void serial_transmit(const uint8_t *msg, uint16_t size) {
+  // TODO: Check for send buffer overflow
+  ring_buffer_queue_arr(&s_o_rb, (const char *)msg, (ring_buffer_size_t)size);
+}
+
 /** Read any waiting input from this USART and stick it in the
  * input ring_buffer. Write any output to the USART if it is ready.
  */
@@ -144,6 +152,9 @@ void check_uart(USART_TypeDef *usart, ring_buffer_t *in_rb, ring_buffer_t *out_r
   // Check for serial input waiting to be read
   if (LL_USART_IsActiveFlag_RXNE(usart)) {
     c = LL_USART_ReceiveData8(usart);
+    char msg[16];
+    snprintf(msg, sizeof(msg), "=%02X=", (int)c);
+    serial_transmit((uint8_t *)msg, strlen(msg));
     ring_buffer_queue(in_rb, c);
   }
 }
@@ -154,15 +165,9 @@ void check_uart(USART_TypeDef *usart, ring_buffer_t *in_rb, ring_buffer_t *out_r
  */
 void check_io() {
   // Serial port
-  check_uart(CONSOLE_UART.Instance, &s_i_rb, &s_o_rb);
+  check_uart(CONSOLE_UART /* .Instance */, &s_i_rb, &s_o_rb);
   // MIDI port
-  check_uart(MIDI1_UART.Instance, &m_i_rb, &m_o_rb);
-}
-
-/** Queues data to be sent over our serial output. */
-void serial_transmit(const uint8_t *msg, uint16_t size) {
-  // TODO: Check for send buffer overflow
-  ring_buffer_queue_arr(&s_o_rb, (const char *)msg, (ring_buffer_size_t)size);
+  check_uart(MIDI1_UART /* .Instance */, &m_i_rb, &m_o_rb);
 }
 
 /** Queues data to be sent over our serial output. */
@@ -273,6 +278,23 @@ void alloc_test() {
   } while (m != NULL || amount > 0);
 }
 
+void clear_uart_flags() {
+  char msg[64];
+  snprintf(msg, sizeof(msg), "LBD: %c, PE: %c, NE: %c, ORE: %c, IDLE: %c",
+           LL_USART_IsActiveFlag_LBD(MIDI1_UART) ? 'A' : ' ',
+           LL_USART_IsActiveFlag_PE(MIDI1_UART) ? 'A' : ' ',
+           LL_USART_IsActiveFlag_NE(MIDI1_UART) ? 'A' : ' ',
+           LL_USART_IsActiveFlag_ORE(MIDI1_UART) ? 'A' : ' ',
+           LL_USART_IsActiveFlag_IDLE(MIDI1_UART) ? 'A' : ' ');
+  serial_transmit((uint8_t *)msg,  strlen(msg));
+
+  LL_USART_ClearFlag_LBD(MIDI1_UART);
+  LL_USART_ClearFlag_PE(MIDI1_UART);
+  LL_USART_ClearFlag_NE(MIDI1_UART);
+  LL_USART_ClearFlag_ORE(MIDI1_UART);
+  LL_USART_ClearFlag_IDLE(MIDI1_UART);
+}
+
 /** Interprets numbers as menu options.
  * Interprets letters as notes to send via MIDI.
  * Ignores the rest.
@@ -356,6 +378,10 @@ uint8_t process_user_input(uint8_t opt) {
     break;
   case ')':
     stack_overflow_test();
+    break;
+  case 'x':
+    // reinit_uarts();
+    clear_uart_flags();
     break;
   case '~':
   case '`':
@@ -458,6 +484,8 @@ void check_midi_synth() {
   char msg[64];
 
   if (midi_in <= 255) {
+    snprintf(msg, sizeof(msg), "_%02X_", midi_in);
+    serial_transmit((uint8_t *)msg, strlen(msg));
     if (midi_stream_receive(&midi_stream_0, midi_in, &mm)) {
       // Received a full MIDI message
 
@@ -508,7 +536,9 @@ void display_init() {
 
   if (spidma_init(spip) != SDRV_OK) {
     const char *msg = "spidma_init failed\r\n";
-    HAL_UART_Transmit(&CONSOLE_UART, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+    for (int i = 0; i < strlen(msg); i++) {
+      LL_USART_TransmitData8(CONSOLE_UART, (uint16_t)msg[i]);
+    }
     while (1) {}
   }
 
@@ -677,7 +707,7 @@ void realmain() {
 ////////////////////////////////////////////////////////////////////////////////////////
 // Callbacks
 
-
+/*
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   // We just want to clear an overrun error and acknowledge it happened.
   // SEE: https://electronics.stackexchange.com/questions/376104/smt32-hal-uart-crash-on-possible-overrun
@@ -706,4 +736,4 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   // This did not work when in the "if" above (it never got invoked).
   __HAL_UART_ENABLE_IT(huart, UART_IT_ERR);
 }
-
+*/

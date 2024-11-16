@@ -32,8 +32,12 @@
 
 
 // From main
+#ifdef USE_HAL_USART
 #define CONSOLE_UART huart2  // EVT#1 Console Port
-extern UART_HandleTypeDef CONSOLE_UART;
+// extern UART_HandleTypeDef CONSOLE_UART;
+#else
+#define CONSOLE_UART USART2
+#endif
 
 #define DISPLAY_SPI spi2tx
 #define DISPLAY_SPIP (&(DISPLAY_SPI))
@@ -55,7 +59,10 @@ static void console_printf(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
   vsnprintf(buff, sizeof(buff), fmt, args);
-  HAL_UART_Transmit(&CONSOLE_UART, (uint8_t*) buff, strlen(buff), HAL_MAX_DELAY);
+  // HAL_UART_Transmit(&CONSOLE_UART, (uint8_t*) buff, strlen(buff), HAL_MAX_DELAY);
+  for (int i = 0; i < strlen(buff); i++) {
+    LL_USART_TransmitData8(CONSOLE_UART, (uint16_t)buff[i]);
+  }
   va_end(args);
 }
 
