@@ -113,7 +113,6 @@ static void spi_transfer_complete(SPI_HandleTypeDef *hspi) {
   DISPLAY_SPI.use_cs = 1;
   DISPLAY_SPI.use_reset = 1;
   DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
-  DISPLAY_SPI.synchronous = 1; // Fake synchronous DMA
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
  */
 void spidma_init(spidma_config_t *spi) {
@@ -215,9 +214,6 @@ spidma_return_value_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t b
   HAL_StatusTypeDef retval = HAL_SPI_Transmit_DMA(spi->spi, buff, buff_size);
 
   if (retval == HAL_OK) {
-    if (spi->synchronous) {
-      spidma_wait_for_completion(spi);
-    }
     return SDRV_OK;
   }
 

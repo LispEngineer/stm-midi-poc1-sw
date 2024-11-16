@@ -116,11 +116,6 @@ typedef struct spidma_config {
   uint8_t use_cs;
   uint8_t use_reset;
 
-  // Should we "fake" being synchronous by waiting for
-  // the DMA to finish?
-  // FIXME: Remove this functionality
-  uint8_t synchronous;
-
   // The HAL type for the SPI port we're using,
   // and the associated transfer DMA
   SPI_HandleTypeDef *spi;

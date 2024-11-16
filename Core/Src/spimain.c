@@ -86,20 +86,19 @@ static void loop(spidma_config_t *spi) {
   spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
   spidma_empty_queue(spi);
   for(int x = 0; x < ILI9341_WIDTH; x++) {
+    if (spidma_queue_remaining(spi) < 12) {
+      spidma_empty_queue(spi);
+    }
     spidma_ili9341_draw_pixel(spi, x, 0, ILI9341_RED);
     spidma_ili9341_draw_pixel(spi, x, ILI9341_HEIGHT-1, ILI9341_RED);
-    if ((x & 0x7) == 0) {
-      spidma_empty_queue(spi);
-    }
   }
-  spidma_empty_queue(spi);
 
   for(int y = 0; y < ILI9341_HEIGHT; y++) {
-    spidma_ili9341_draw_pixel(spi, 0, y, ILI9341_RED);
-    spidma_ili9341_draw_pixel(spi, ILI9341_WIDTH-1, y, ILI9341_RED);
-    if ((y & 0x7) == 0) {
+    if (spidma_queue_remaining(spi) < 12) {
       spidma_empty_queue(spi);
     }
+    spidma_ili9341_draw_pixel(spi, 0, y, ILI9341_RED);
+    spidma_ili9341_draw_pixel(spi, ILI9341_WIDTH-1, y, ILI9341_RED);
   }
   spidma_empty_queue(spi);
   HAL_Delay(1000);
@@ -223,7 +222,6 @@ void spimain(void) {
   DISPLAY_SPI.use_cs = 1;
   DISPLAY_SPI.use_reset = 1;
   DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
-  DISPLAY_SPI.synchronous = 1; // Fake synchronous DMA
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
   spidma_init(DISPLAY_SPIP);
 
