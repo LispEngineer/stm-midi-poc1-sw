@@ -2,10 +2,18 @@
  * spidma.h
  *
  *  Created on: 2024-11-11
- *  Updated on: 2024-11-15
+ *  Updated on: 2024-11-16
  *      Author: Douglas P. Fields, Jr. - symbolics@lisp.engineer
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
+ *
+ * See .c file for full description.
+ *
+ * Configurable items in this file:
+ * 1. Number of queue entries in the SPIDMA queue
+ *    * This must be a multiple of 2
+ * 2. TODO: define if you want various counters enabled
+ *    (useful for debugging)
  */
 
 #ifndef INC_SPIDMA_H_
@@ -94,6 +102,7 @@ typedef struct spidma_config {
   spidma_entry_t entries[NUM_SPI_ENTRIES];
   spiq_size_t head_entry; // When head == tail, queue is EMPTY
   spiq_size_t tail_entry;
+  uint32_t entry_queue_failures;
 
   // Our delay handling variables
   uint8_t  in_delay;
@@ -104,7 +113,15 @@ typedef struct spidma_config {
   void *      free_entries[NUM_SPI_ENTRIES];
   spiq_size_t head_free; // When head == tail, queue is EMPTY
   spiq_size_t tail_free;
+  uint32_t free_queue_failures;
+
+  void *      backup_free_entries[NUM_SPI_ENTRIES];
+  spiq_size_t head_backup_free; // When head == tail, queue is EMPTY
+  spiq_size_t tail_backup_free;
+  uint32_t backup_free_queue_failures;
+
   uint32_t    mem_frees;
+  uint32_t    backup_frees;
 } spidma_config_t;
 
 
@@ -132,6 +149,7 @@ uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t)
 uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *,
                                 uint32_t, uint8_t repeats, uint8_t should_free);
 spiq_size_t spidma_queue_length(spidma_config_t *spi);
+spiq_size_t spidma_queue_remaining(spidma_config_t *spi);
 
 
 // This needs to be called regularly to keep the SPI queue emptied.

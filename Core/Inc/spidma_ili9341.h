@@ -2,7 +2,7 @@
  * spidma_ili9341.h
  *
  *  Created on: 2024-11-14
- *  Updated on: 2024-11-14
+ *  Updated on: 2024-11-16
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -62,14 +62,16 @@
 */
 
 ///////////////////////////////////////////////////
+// Debugging counters
 
 extern uint32_t ili_mem_alloc_failures;
-extern size_t ili_last_alloc_failure_size;
+extern size_t   ili_last_alloc_failure_size;
 extern uint32_t ili_mem_allocs;
 extern uint32_t ili_queue_failures;
-
+extern uint32_t ili_characters_skipped;
 
 ///////////////////////////////////////////////////
+// Functionality
 
 void spidma_ili9341_init(spidma_config_t *spi);
 void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);

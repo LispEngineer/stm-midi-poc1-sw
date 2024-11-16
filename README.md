@@ -265,5 +265,14 @@ We need a way to ensure freeing of possibly used memory even when the SPI
 queue is not empty, so add a backup free queue that will only be free'd
 once the SPI queue is entirely empty.
 
-Also, don't attempt to alloc and queue stuff if you don't have enough room
+So, the question is, if the auto-free is set but we couldn't queue something,
+should the SPI mechanism be responsible for handling the freeing? I think so.
+
+FIXED: Any request for auto-freeing that could not be queued is now queued
+into a backup freeing queue, and whenever the SPI queue is empty we free
+everything in this backup free queue. While we're at it, we also
+add free requests to the backup free queue if we can't add them to the main
+freeing queue.
+
+TODO: Also, don't attempt to alloc and queue stuff if you don't have enough room
 in the queue!

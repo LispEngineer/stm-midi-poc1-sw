@@ -1,7 +1,21 @@
 /*
- * Adapted from https://github.com/afiskon/stm32-ili9341
+ *  Created on: 2024-11-14
+ *  Updated on: 2024-11-16
+ *      Author: Douglas P. Fields, Jr.
+ *   Copyright: 2024, Douglas P. Fields, Jr.
+ *     License: Apache 2.0
+ *
+ * Standalone test spimain() for an ILI9341 display connected
+ * to an STM32 board.
+ *
+ * Configurable things:
+ * 1. CONSOLE_UART: The UART to send data to for debugging purposes
+ * 2. DISPLAY_SPI: spidma_config_t
+ * 3. ILI9341_SPI_PORT: the SPI Handle for SPI display
+ * 4. DISPLAY_DMA: The DMA handle for the SPI transmit
+ *
+ * Conceived from https://github.com/afiskon/stm32-ili9341
  */
-
 
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
@@ -32,19 +46,33 @@ extern SPI_HandleTypeDef ILI9341_SPI_PORT;
 extern DMA_HandleTypeDef DISPLAY_DMA;
 
 
-static void UART_Printf(const char* fmt, ...) {
-    char buff[256];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buff, sizeof(buff), fmt, args);
-    HAL_UART_Transmit(&CONSOLE_UART, (uint8_t*)buff, strlen(buff),
-                      HAL_MAX_DELAY);
-    va_end(args);
+/*
+ * Transmits synchronously to the UART.
+ * Credit: https://github.com/afiskon/stm32-ili9341
+ */
+static void console_printf(const char* fmt, ...) {
+  char buff[256];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buff, sizeof(buff), fmt, args);
+  HAL_UART_Transmit(&CONSOLE_UART, (uint8_t*) buff, strlen(buff), HAL_MAX_DELAY);
+  va_end(args);
 }
 
-static void print_queue_length(spidma_config_t *spi, int id) {
-  UART_Printf("%d - ql: %d, qf: %d; maf: %u, sz: %u; allocs: %u, frees: %u\r\n", id, (int)spidma_queue_length(spi),
-              ili_queue_failures,
+static void print_queue_info(spidma_config_t *spi, int id) {
+  console_printf("%d - "
+              "ql: %u, qr: %u, sdqf: %u, iliqf: %u, ilics: %u; "
+              "fqf: %u, bfqf: %u; "
+              "maf: %u, sz: %u; ili_allocs: %u, sd_frees: %u\r\n",
+
+              id,
+
+              spidma_queue_length(spi), spidma_queue_remaining(spi),
+              DISPLAY_SPI.entry_queue_failures,
+              ili_queue_failures, ili_characters_skipped,
+
+              DISPLAY_SPI.free_queue_failures, DISPLAY_SPI.backup_free_queue_failures,
+
               ili_mem_alloc_failures, ili_last_alloc_failure_size,
               ili_mem_allocs, DISPLAY_SPI.mem_frees);
 }
@@ -77,23 +105,33 @@ static void loop(spidma_config_t *spi) {
   HAL_Delay(1000);
 
   // Check fonts
+  uint32_t end_loc;
+  uint16_t end_x;
+  uint16_t end_y;
   spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
-  print_queue_length(spi, 1000);
+  print_queue_info(spi, 1000);
   spidma_empty_queue(spi);
-  print_queue_length(spi, 1001); // Should be 0
-  spidma_ili9341_write_string(spi, 0, 0, "Font_7x10, red on black, lorem ipsum dolor sit amet", Font_7x10, ILI9341_RED, ILI9341_BLACK);
-  print_queue_length(spi, 1002);
+  print_queue_info(spi, 1001); // Should be 0
+
+  end_loc = spidma_ili9341_write_string(spi, 0, 0, "Font_7x10, red/black, abcdefgABCDEFG", Font_7x10, ILI9341_RED, ILI9341_BLACK);
+  print_queue_info(spi, 1002);
   spidma_empty_queue(spi);
-  print_queue_length(spi, 1003); // Should be 0
-  spidma_ili9341_write_string(spi, 0, 3*10, "Font_11x18, green, lorem ipsum dolor sit amet", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
-  print_queue_length(spi, 1004);
+  end_x = end_loc & 0xFFFF; // Lower word
+  end_y = end_loc >> 16; // Higher word
+
+  print_queue_info(spi, 1003); // Should be 0
+  end_loc = spidma_ili9341_write_string(spi, end_x, end_y, "Font_11x18, green/blue, ghijklmGHIJKLM", Font_11x18, ILI9341_GREEN, ILI9341_BLUE);
+  print_queue_info(spi, 1004);
   spidma_empty_queue(spi);
-  print_queue_length(spi, 1005); // Should be 0
-  spidma_ili9341_write_string(spi, 0, 3*10+3*18, "Font_16x26, blue, lorem ipsum dolor sit amet", Font_16x26, ILI9341_BLUE, ILI9341_BLACK);
-  print_queue_length(spi, 1006);
+  end_x = end_loc & 0xFFFF; // Lower word
+  end_y = end_loc >> 16; // Higher word
+
+  print_queue_info(spi, 1005); // Should be 0
+  spidma_ili9341_write_string(spi, end_x, end_y, "Font_16x26, black/yellow, mnopqrsMNOPQRS", Font_16x26, ILI9341_BLACK, ILI9341_YELLOW);
+  print_queue_info(spi, 1006);
   spidma_empty_queue(spi);
-  print_queue_length(spi, 1007); // Should be 0
-  HAL_Delay(500);
+  print_queue_info(spi, 1007); // Should be 0
+  HAL_Delay(2000);
 
   spidma_ili9341_invert(spi, true);
   spidma_empty_queue(spi);
@@ -143,12 +181,12 @@ static void loop(spidma_config_t *spi) {
   spidma_empty_queue(spi);
   HAL_Delay(1000);
 
-  UART_Printf("Drawing image...\r\n");
+  console_printf("Drawing image...\r\n");
   // Last argument is to copy the data before sending it.
   // If the data is coming from flash, we should do that.
   spidma_ili9341_draw_image(spi, (ILI9341_WIDTH - 240) / 2, (ILI9341_HEIGHT - 240) / 2, 240, 240, (const uint16_t*)test_img_240x240, 1);
   spidma_empty_queue(spi);
-  UART_Printf("...done.\r\n");
+  console_printf("...done.\r\n");
   HAL_Delay(1500);
 
 #ifdef INCLUDE_TOUCH
@@ -170,7 +208,7 @@ static void loop(spidma_config_t *spi) {
 
   spidma_queue(spi, SPIDMA_DESELECT, 0, NULL, 1000100);
   spidma_empty_queue(spi);
-  UART_Printf("loop() done\r\n");
+  console_printf("loop() done\r\n");
 }
 
 // Main program for an SPI demo
@@ -189,11 +227,11 @@ void spimain(void) {
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
   spidma_init(DISPLAY_SPIP);
 
-  UART_Printf("Starting init...\r\n");
+  console_printf("Starting init...\r\n");
   spidma_ili9341_init(DISPLAY_SPIP);
   spidma_empty_queue(DISPLAY_SPIP);
 
-  UART_Printf("Starting loop...\r\n");
+  console_printf("Starting loop...\r\n");
   while (1) {
     loop(DISPLAY_SPIP);
   }

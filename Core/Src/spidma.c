@@ -1,6 +1,12 @@
 /*
  * spidma.c
  *
+ *  Created on: 2024-11-11
+ *  Updated on: 2024-11-16
+ *      Author: Douglas P. Fields, Jr. - symbolics@lisp.engineer
+ *   Copyright: 2024, Douglas P. Fields, Jr.
+ *     License: Apache 2.0
+ *
  * Routines to have a queue of things to transfer
  * (outbound only) via SPI, with a command/data
  * and chip select pin.
@@ -11,6 +17,10 @@
  *   * Queue entries have a generic 32-bit value for end user identification
  *   * Queue entries have a monotonically increasing internal identifier
  *     which is returned to the caller
+ *   * Allow a buffer to be auto-free'd
+ *   * If the buffer cannot be auto-free'd because the SPI queue is full,
+ *     add it to a backup freeing queue and free it later when the SPI queue
+ *     is empty, to reduce likelihood of memory leaks.
  * * Get notification when a queued thing starts or stops
  * * Queue status queries
  *   * Counter of how many things are queued
@@ -21,6 +31,13 @@
  * Non-features:
  * * Thread safety
  *
+ * Any request for an SPI event with auto-freeing that could not be queued is
+ * instead now queued
+ * into a backup freeing queue, and whenever the SPI queue is empty we free
+ * everything in this backup free queue. While we're at it, we also
+ * add free requests to the backup free queue if we can't add them to the main
+ * freeing queue.
+ *
  * IMPORTANT NOTES:
  * 1. This currently is not remotely thread safe, but that's
  *    okay for now because the current target is non-threaded
@@ -30,11 +47,6 @@
  *    determine which spidma_config_t's interrupt is being handled.
  *    (Not having closures in plain C is a bit annoying.)
  *
- *  Created on: 2024-11-11
- *  Updated on: 2024-11-15
- *      Author: Douglas P. Fields, Jr. - symbolics@lisp.engineer
- *   Copyright: 2024, Douglas P. Fields, Jr.
- *     License: Apache 2.0
  */
 
 #include <stdlib.h> // free()
@@ -113,9 +125,15 @@ void spidma_init(spidma_config_t *spi) {
   // Set up the queues
   spi->head_entry = 0;
   spi->tail_entry = 0;
+  spi->entry_queue_failures = 0;
   spi->head_free = 0;
   spi->tail_free = 0;
+  spi->free_queue_failures = 0;
+  spi->head_backup_free = 0;
+  spi->tail_backup_free = 0;
+  spi->backup_free_queue_failures = 0;
   spi->mem_frees = 0;
+  spi->backup_frees = 0;
 
   // Set up the status flags
   spi->in_delay = 0;
@@ -247,9 +265,6 @@ void spidma_wait_for_completion(spidma_config_t *spi) {
 
 
 
-///////////////////////////////////////////////////////////////////////////////////
-// Sending queue functions
-
 /*
  * Calculate the next queue entry from the current one.
  * We require the queue size to be a power of two so we can
@@ -258,6 +273,58 @@ void spidma_wait_for_completion(spidma_config_t *spi) {
 static inline spiq_size_t next_entry(spiq_size_t x) {
   return (spiq_size_t)((x + (spiq_size_t)1) & SPI_ENTRY_MASK);
 }
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+// Backup free queue functions
+
+
+/*
+ * Returns 0 if we cannot add a backup free'ing entry.
+ *
+ * We add something by incrementing the tail.
+ * We read from the head.
+ */
+static uint32_t spidma_backup_free_queue(spidma_config_t *spi, void *buff) {
+  if (NULL == buff) {
+    // We do not add nulls, even if requested, but we pretend
+    // it worked
+    return 2;
+  }
+
+  spiq_size_t c = spi->tail_backup_free;
+  spiq_size_t n = next_entry(c);
+
+  // Check if full
+  if (spi->head_backup_free == n) {
+    spi->backup_free_queue_failures++;
+    return 0;
+  }
+  // Add entry
+  spi->backup_free_entries[c] = buff;
+  spi->tail_backup_free = n;
+
+  return 1;
+}
+
+/*
+ * Returns NULL if there is nothing to dequeue.
+ */
+static void *spidma_backup_free_dequeue(spidma_config_t *spi) {
+  if (spi->head_backup_free == spi->tail_backup_free) {
+    // Queue is empty
+    return NULL;
+  }
+
+  void *retval = spi->backup_free_entries[spi->head_backup_free];
+
+  spi->head_backup_free = next_entry(spi->head_backup_free);
+  return retval;
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+// Sending queue functions
 
 /*
  * Checks if the DMA sending queue is full. It's full when
@@ -284,6 +351,16 @@ uint32_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_
   // check if we have room.
   // We are out of space when the tail is right behind the head.
   if (spi->head_entry == n) {
+    spi->entry_queue_failures++;
+    if (should_free) {
+      // We need to queue this up for freeing, regardless,
+      // when we are sure it isn't in use.
+      // (Sometimes a buffer is used for multiple queue
+      // entries and is only marked for freeing in the last
+      // use queue'd.)
+      uint32_t queued = spidma_backup_free_queue(spi, buff);
+      // TODO: Check if that worked, return a special message?
+    }
     return 0;
   }
 
@@ -326,6 +403,10 @@ uint32_t spidma_free_queue(spidma_config_t *spi, void *buff) {
 
   // Check if full
   if (spi->head_free == n) {
+    spi->free_queue_failures++;
+    // TODO: Add this to the backup free queue instead?
+    // If that also fails, we have big problems and the
+    // caller has to deal with it.
     return 0;
   }
   // Add entry
@@ -349,6 +430,19 @@ void *spidma_free_dequeue(spidma_config_t *spi) {
   spi->head_free = next_entry(spi->head_free);
   return retval;
 }
+
+/** Free all the memory waiting for freeing in our backup queue. */
+static void spidma_do_backup_free_queue_freeing(spidma_config_t *spi) {
+  void *freeable;
+
+  // Free all memory waiting to be freed
+  while ((freeable = spidma_backup_free_dequeue(spi)) != NULL) {
+    free(freeable);
+    spi->mem_frees++;
+    spi->backup_frees++;
+  }
+}
+
 
 /*
  * Processes the next queue entry, if necessary,
@@ -396,6 +490,11 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
 
   if (spi->head_entry == spi->tail_entry) {
     // Queue is empty
+    // Do our backup queue free'ing.
+    spidma_do_backup_free_queue_freeing(spi);
+    // TODO: Also mark the backup free queue length
+    // and clear it of that many entries every entry queue length
+    // entries processed.
     return nothing_to_do;
   }
 
@@ -479,5 +578,15 @@ uint32_t spidma_empty_queue(spidma_config_t *spi) {
 
 spiq_size_t spidma_queue_length(spidma_config_t *spi) {
   return (spi->tail_entry - spi->head_entry) & SPI_ENTRY_MASK;
+}
+
+/*
+ * Returns the number of queue entries we can submit before
+ * we are full.
+ */
+spiq_size_t spidma_queue_remaining(spidma_config_t *spi) {
+  // We lose one entry because of the need to differentiate full
+  // from empty.
+  return NUM_SPI_ENTRIES - spidma_queue_length(spi) - 1;
 }
 

@@ -5,7 +5,7 @@
  * my SPIDMA queueing mechanism.
  *
  *  Created on: 2024-11-14
- *  Updated on: 2024-11-15
+ *  Updated on: 2024-11-16
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -27,6 +27,7 @@ uint32_t ili_mem_alloc_failures = 0;
 uint32_t ili_mem_allocs = 0;
 size_t ili_last_alloc_failure_size;
 uint32_t ili_queue_failures = 0;
+uint32_t ili_characters_skipped = 0;
 
 static uint8_t init_0[]   = { 0x01 }; // Command SOFTWARE RESET
 static uint8_t init_1[]   = { 0xCB }; // Command POWER CONTROL A
@@ -196,6 +197,8 @@ void spidma_ili9341_init(spidma_config_t *spi) {
 
 /*
  * Set the next data write to a certain rectangle of pixel memory.
+ *
+ * Number of things queued: 5
  */
 void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 
@@ -352,10 +355,11 @@ void spidma_ili9341_draw_pixel(spidma_config_t *spi, uint16_t x, uint16_t y, uin
  * with the specified foreground and background colors.
  * The font size is specified in FontDef. This allocates w * h * 2 bytes
  * of memory.
+ *
+ * Allocates a drawing buffer and submits it to the queue with auto-freeing.
+ *
+ * Number of items queued: 1 + set_address_window = 6
  */
-// TODO: make this take a buffer to use to write to.
-// If not provided, then allocate one and auto-free it.
-// If provided, do NOT auto-free it unless the caller tells us to.
 void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
                                   char ch, FontDef font, uint16_t color, uint16_t bgcolor) {
   uint32_t i, b, j;
@@ -425,7 +429,22 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
  */
 uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
                                         const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
+  spiq_size_t remaining;
+
   while (*str) {
+    // Only continue if we have enough queue space for writing this
+    // next character
+    remaining = spidma_queue_remaining(spi);
+    if (remaining < 6) {
+      // stop here.
+      // TODO: How to return how many characters we actually drew?
+      // 1. With our return value
+      // 2. Because we have been incrementing str :)
+      ili_characters_skipped += strlen(str);
+      break;
+    }
+
+    // Now draw one character
     if (x + font.width >= ILI9341_WIDTH) {
       x = 0;
       y += font.height;
