@@ -288,15 +288,19 @@ void spidma_ili9341_draw_pixel(spidma_config_t *spi, uint16_t x, uint16_t y, uin
   spidma_ili9341_fill_rectangle(spi, x, y, 1, 1, color);
 }
 
-static uint16_t char_buf[FILL_RECT_BUFF_SZ];
-
+// TODO: make this take a buffer to use to write to.
+// If not provided, then allocate one and auto-free it.
+// If provided, do NOT auto-free it unless the caller tells us to.
 void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
                                   char ch, FontDef font, uint16_t color, uint16_t bgcolor) {
   uint32_t i, b, j;
-  size_t pos = 0;
+  size_t buff_size = sizeof(uint16_t) * font.height * font.width;
+  uint16_t *buff = (uint16_t *)malloc(buff_size);
 
-  if (((font.width * font.height) >> FILL_RECT_BUFF_SHIFT) > 0) {
-    // Font too big for our buffer, oh well
+  // Check return value for memory exhaustion
+  if (NULL == buff) {
+    // Toggle the blue LED
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
     return;
   }
 
@@ -304,17 +308,24 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
   color = ((color & 0xFF) << 8) | (color >> 8);
   bgcolor = ((bgcolor & 0xFF) << 8) | (bgcolor >> 8);
 
-  // Prepare to blast our character out in a single write
+  // 32 = space, we don't have glyphs for control characters
+  size_t font_data_start = (ch - 32) * font.height;
+
+  // Prepare to blast our character out in a single write.
+  // Each bit in the font turns into a 2-byte word that
+  // we send to the screen of either the foreground or background
+  // color.
+  uint16_t *bp = buff;
   for (i = 0; i < font.height; i++) {
-    b = font.data[(ch - 32) * font.height + i];
+    b = font.data[font_data_start + i];
     for (j = 0; j < font.width; j++) {
-      char_buf[pos] = ((b << j) & 0x8000) ? color : bgcolor;
-      pos++;
+      *bp = ((b << j) & 0x8000) ? color : bgcolor;
+      bp++;
     }
   }
 
   spidma_ili9341_set_address_window(spi, x, y, x + font.width - 1, y + font.height - 1);
-  spidma_queue(spi, SPIDMA_DATA, pos * 2, (uint8_t *)char_buf, 30000);
+  spidma_queue_repeats(spi, SPIDMA_DATA, buff_size, (uint8_t *)buff, 30000, 0, 1); // Don't repeat & auto-free
 
   // Run the queue until it's empty
   while (spidma_check_activity(spi) != 0); // 0 = nothing to do
@@ -329,6 +340,10 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
  * It may be that the next drawing position would not actually fit
  * fully on the screen - the caller needs to check that
  * (new y + font.height > screen height) means off the screen
+ *
+ * Realize that this could use a lot of RAM and fill up
+ * the SPI transmit queue if we have a lot of characters.
+ *
  */
 uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
                                         const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
