@@ -247,7 +247,8 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   // Add all the repeats, if any
   if (repeats > 0) {
     remainder = end_pos - (repeats << FILL_RECT_BUFF_SHIFT);
-    spidma_queue_repeats(spi, SPIDMA_DATA, FILL_RECT_BUFF_SZ * 2, (uint8_t *)fill_rect_buff, 20010, repeats - 1);
+    // Final 0 means "don't auto-free this buffer"
+    spidma_queue_repeats(spi, SPIDMA_DATA, FILL_RECT_BUFF_SZ * 2, (uint8_t *)fill_rect_buff, 20010, repeats - 1, 0);
     end_pos = remainder;
   }
   if (end_pos > 0) {

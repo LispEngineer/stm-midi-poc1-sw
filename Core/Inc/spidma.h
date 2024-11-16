@@ -27,7 +27,8 @@ typedef enum spidma_entry_type {
 } spidma_entry_type_t;
 
 /*
- * This structure holds
+ * This structure holds a single entry for things
+ * that should be sent over the SPI bus.
  */
 typedef struct spidma_entry {
   uint8_t  type;
@@ -38,8 +39,16 @@ typedef struct spidma_entry {
   // TODO: Should we have a flag to allow a free(buff)?
   // How many times should we repeat this entry?
   uint8_t  repeats;
+  // Should we free the buff after we are done?
+  uint8_t  should_free;
 } spidma_entry_t;
 
+/*
+ * NOTE: This structure should be allocated in the fast
+ * data RAM of the microcontroller because it will be
+ * accessed several times during an SPI transfer complete
+ * interrupt.
+ */
 typedef struct spidma_config {
   // The pins and banks for these SPI display signals:
   // CS - Chip Select (active low)
@@ -67,6 +76,8 @@ typedef struct spidma_config {
   DMA_HandleTypeDef *dma_tx;
 
   // TODO: Flag set when we're sending - reset by interrupt
+  // Just before we do anything, we set this to what we're doing
+  spidma_entry_t current_entry;
 
   // Our sending buffer
   // Note that none of this code is thread-safe
@@ -75,6 +86,11 @@ typedef struct spidma_config {
   spiq_size_t tail_entry;
   uint8_t  in_delay;
   uint32_t delay_until;
+
+  // Our freeing buffer - memory we will free later
+  void *      free_entries[NUM_SPI_ENTRIES];
+  spiq_size_t head_free; // When head == tail, queue is EMPTY
+  spiq_size_t tail_free;
 } spidma_config_t;
 
 
@@ -93,9 +109,14 @@ uint32_t spidma_write_data(spidma_config_t *, uint8_t *buff, size_t buff_size);
 void spidma_wait_for_completion(spidma_config_t *);
 
 // SPI transmit queue functions
-uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t); // 0 repeats
-uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t, uint8_t repeats); // repeats
+uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t); // 0 repeats, no freeing
+uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *,
+                                uint32_t, uint8_t repeats, uint8_t should_free);
 uint32_t spidma_check_activity(spidma_config_t *spi);
+
+// SPI memory free queue functions
+uint32_t spidma_free_queue(spidma_config_t *spi, void *buff);
+void *spidma_free_dequeue(spidma_config_t *spi);
 
 
 #endif /* INC_SPIDMA_H_ */

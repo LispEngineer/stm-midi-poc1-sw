@@ -21,30 +21,64 @@
  * Non-features:
  * * Thread safety
  *
+ * IMPORTANT NOTES:
+ * 1. This currently is not remotely thread safe, but that's
+ *    okay for now because the current target is non-threaded
+ *    and single-core
+ * 2. This currently will NOT work with multiple instances
+ *    due to having a single interrupt handler with no way to
+ *    determine which spidma_config_t's interrupt is being handled.
+ *    (Not having closures in plain C is a bit annoying.)
+ *
  *  Created on: 2024-11-11
- *  Updated on: 2024-11-12
+ *  Updated on: 2024-11-15
  *      Author: Douglas P. Fields, Jr. - symbolics@lisp.engineer
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
  */
 
+#include <stdlib.h> // free()
 #include "stm32f7xx_hal.h"
 #include "spidma.h"
 
+// Our console U(S)ART
 extern UART_HandleTypeDef huart2;
 
 // This is a hack until we figure out how to put it into the spidma_config_t
-static volatile uint32_t is_sending;
-static spidma_entry_t current_sending_entry;
+static volatile uint32_t is_sending = 0;
+static spidma_config_t *current_sending_spi = NULL; // This would also initialized to NULL
 
-static void spi_transfer_complete(SPI_HandleTypeDef *hdma) {
+static void spi_transfer_complete(SPI_HandleTypeDef *hspi) {
+
+  // If we're not the sending SPI interrupt, do nothing
+  if (current_sending_spi == NULL || hspi != current_sending_spi->spi) {
+    return;
+  }
+
+  // If the user wants to free this memory, queue it for freeing
+  // in the non-interrupt thread
+  if (current_sending_spi->current_entry.repeats == 0 &&
+      current_sending_spi->current_entry.should_free) {
+    spidma_free_queue(current_sending_spi, current_sending_spi->current_entry.buff);
+  }
+
+  // Flash or transmit stuff for gratuitous purposes
   HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14); // Green LED
   // HAL_UART_Transmit(&huart2, (uint8_t *)"+", 1, HAL_MAX_DELAY);
+
   is_sending = 0;
+  current_sending_spi = NULL;
 }
 
-/** Initialize the DMA transfers and the
- * state of the SPI pins, as well as the sending queue.
+/**
+ * Initialize the DMA transfers and the
+ * state of the SPI-supporting GPIO pins,
+ * as well as the sending queue,
+ * freeing queue, and in_delay flag.
+ *
+ * There can be only ONE spidma_config_t for each
+ * (SPI_HandleTypeDef *) because we (may) use that to look up the
+ * spidma_config_t later in an interrupt function.
  *
  * The caller is expected to have initialized these fields:
   DISPLAY_SPI.bank_cs = GPIO_PA15_SPI2_CS_GPIO_Port;
@@ -60,15 +94,19 @@ static void spi_transfer_complete(SPI_HandleTypeDef *hdma) {
   DISPLAY_SPI.dma_tx = &DISPLAY_DMA;
  */
 void spidma_init(spidma_config_t *spi) {
-  // TODO: Most of the work
-
   // TODO: Make this a closure that knows which spidma_config_t was in use
+  // (or at the least, a lookup table from the hspi to the spidma_config_t)
   HAL_SPI_RegisterCallback(spi->spi, HAL_SPI_TX_COMPLETE_CB_ID, spi_transfer_complete);
   is_sending = 0;
+  current_sending_spi = NULL;
 
-  // Set up the queue
+  // Set up the queues
   spi->head_entry = 0;
   spi->tail_entry = 0;
+  spi->head_free = 0;
+  spi->tail_free = 0;
+
+  // Set up the status flags
   spi->in_delay = 0;
 }
 
@@ -140,8 +178,9 @@ uint32_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
     return 2U;
   }
 
-  // TODO: Start a DMA transfer
+  // Start a DMA transfer; set our status for the send complete callback
   is_sending = 1;
+  current_sending_spi = spi;
   HAL_StatusTypeDef retval = HAL_SPI_Transmit_DMA(spi->spi, buff, buff_size);
 
   if (retval == HAL_OK) {
@@ -153,6 +192,7 @@ uint32_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
 
   // One of the HAL-not-OK values shifted to the next nibble
   is_sending = 0;
+  current_sending_spi = NULL;
   return retval << 4;
 }
 
@@ -214,7 +254,8 @@ static inline uint32_t spidma_is_queue_full(spidma_config_t *spi) {
  * We read from the head.
  */
 uint32_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
-                                uint8_t *buff, uint32_t identifier, uint8_t repeats) {
+                                uint8_t *buff, uint32_t identifier, uint8_t repeats,
+                                uint8_t should_free) {
 
   spiq_size_t c = spi->tail_entry;
   spiq_size_t n = next_entry(c);
@@ -236,13 +277,57 @@ uint32_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_
   entry->buff_size = buff_size;
   entry->identifier = identifier;
   entry->repeats = repeats;
+  entry->should_free = should_free;
 
   return 1;
 }
 
+/** Queues this buffer for sending with 0 repeats and no freeing */
 uint32_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
                        uint8_t *buff, uint32_t identifier) {
-  return spidma_queue_repeats(spi, type, buff_size, buff, identifier, 0);
+  return spidma_queue_repeats(spi, type, buff_size, buff, identifier, 0, 0);
+}
+
+/*
+ * Returns 0 if we cannot add a free'ing entry.
+ *
+ * We add something by incrementing the tail.
+ * We read from the head.
+ */
+uint32_t spidma_free_queue(spidma_config_t *spi, void *buff) {
+  if (NULL == buff) {
+    // We do not add nulls, even if requested, but we pretend
+    // it worked
+    return 2;
+  }
+
+  spiq_size_t c = spi->tail_free;
+  spiq_size_t n = next_entry(c);
+
+  // Check if full
+  if (spi->head_free == n) {
+    return 0;
+  }
+  // Add entry
+  spi->free_entries[c] = buff;
+  spi->tail_free = n;
+
+  return 1;
+}
+
+/*
+ * Returns NULL if there is nothing to dequeue.
+ */
+void *spidma_free_dequeue(spidma_config_t *spi) {
+  if (spi->head_free == spi->tail_free) {
+    // Queue is empty
+    return NULL;
+  }
+
+  void *retval = spi->free_entries[spi->head_free];
+
+  spi->head_free = next_entry(spi->head_free);
+  return retval;
 }
 
 /*
@@ -262,6 +347,12 @@ uint32_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
 uint32_t spidma_check_activity(spidma_config_t *spi) {
   uint32_t nothing_to_do = 0;
   uint32_t retval;
+  void *freeable;
+
+  // Free all memory waiting to be freed
+  while ((freeable = spidma_free_dequeue(spi)) != NULL) {
+    free(freeable);
+  }
 
   // Handle our delay function
   if (spi->in_delay) {
@@ -291,27 +382,27 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
 
   // Take an entry off the queue and start doing it
   spidma_entry_t *e = &(spi->entries[spi->head_entry]);
-  current_sending_entry = *e;
+  spi->current_entry = *e;
 
   // Do our action
-  switch (current_sending_entry.type) {
+  switch (e->type) {
   case SPIDMA_DATA:
-    spidma_write_data(spi, current_sending_entry.buff, current_sending_entry.buff_size);
+    spidma_write_data(spi, e->buff, e->buff_size);
     // TODO: Check return value
     retval = 6;
     break;
   case SPIDMA_COMMAND:
-    spidma_write_command(spi, current_sending_entry.buff, current_sending_entry.buff_size);
+    spidma_write_command(spi, e->buff, e->buff_size);
     // TODO: Check return value
     retval = 6;
     break;
   case SPIDMA_UNCHANGED:
-    spidma_write(spi, current_sending_entry.buff, current_sending_entry.buff_size);
+    spidma_write(spi, e->buff, e->buff_size);
     retval = 6;
     break;
   case SPIDMA_DELAY:
     spi->in_delay = 1;
-    spi->delay_until = HAL_GetTick() + current_sending_entry.buff_size;
+    spi->delay_until = HAL_GetTick() + e->buff_size;
     retval = 5;
     break;
   case SPIDMA_RESET:
@@ -332,6 +423,7 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
     break;
   default:
     retval = 4;
+    break;
   }
 
   // There is a possible race condition. If the DMA is really small,
