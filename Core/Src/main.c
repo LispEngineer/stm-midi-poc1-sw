@@ -152,7 +152,9 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
+#ifdef TEST_SPI
   spimain(); // Test SPI
+#endif
 
   realmain(); // Leave pre-generated code and move to DPF's code
 

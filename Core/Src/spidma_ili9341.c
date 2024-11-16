@@ -211,8 +211,10 @@ void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16
 
   // Check return value for memory exhaustion
   if (NULL == buff) {
+#ifdef TOGGLE_LEDS
     // Toggle the blue LED
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+#endif
     ili_mem_alloc_failures++;
     ili_last_alloc_failure_size = SAW_BUFF_SIZE;
     return;
@@ -292,8 +294,10 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
 
   // Check return value for memory exhaustion
   if (NULL == fill_rect_buff) {
+#ifdef TOGGLE_LEDS
     // Toggle the blue LED
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+#endif
     ili_mem_alloc_failures++;
     ili_last_alloc_failure_size = buff_end * sizeof(uint16_t);
     return;
@@ -370,8 +374,10 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
 
   // Check return value for memory exhaustion
   if (NULL == buff) {
+#ifdef TOGGLE_LEDS
     // Toggle the blue LED
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+#endif
     ili_mem_alloc_failures++;
     ili_last_alloc_failure_size = buff_size;
     return;

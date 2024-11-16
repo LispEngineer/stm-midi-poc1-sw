@@ -12,6 +12,7 @@
 #define INC_SPIDMA_ILI9341_H_
 
 #include <stdbool.h>
+#include "fonts.h"
 
 // ILI9341 configuration
 // Adapted from https://github.com/afiskon/stm32-ili9341

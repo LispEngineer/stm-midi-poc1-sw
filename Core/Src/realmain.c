@@ -22,6 +22,9 @@
 #include "ringbuffer.h"
 #include "midi.h"
 #include "tonegen.h"
+#include "spidma.h"
+#include "spidma_ili9341.h"
+#include "fonts.h"
 
 // When we set up our memory map, use these
 // #define FAST_BSS __attribute((section(".fast_bss")))
@@ -29,10 +32,13 @@
 #define FAST_BSS
 #define FAST_DATA
 
-#define WELCOME_MSG "Doug's MIDI v10\r\n"
+#define SOFTWARE_VERSION "11"
+
+#define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t156. Toggle R/G/B LED\r\n" \
                      "\t2/3. Read BTN1/2\r\n" \
                      "\t4.   Counters\r\n" \
+                     "\t7.   SPI info\r\n" \
                      "\tqw.  Pause/start I2S\r\n" \
                      "\ter.  Start/stop tone\r\n" \
                      "\tdf.  Send note on/off\r\n" \
@@ -55,11 +61,15 @@ const uint8_t NOTE_OFF[] = NOTE_OFF_START;
 #define MIDI2_UART   huart1
 #define CONSOLE_UART huart2
 #define SOUND1       hi2s1
+#define DISPLAY_SPI  hspi2
+#define DISPLAY_DMA  hdma_spi2_tx
 
 // From main.c
 extern UART_HandleTypeDef CONSOLE_UART; // Serial Console
 extern UART_HandleTypeDef MIDI1_UART; // MIDI 1
 extern I2S_HandleTypeDef SOUND1;
+extern SPI_HandleTypeDef DISPLAY_SPI;
+extern DMA_HandleTypeDef DISPLAY_DMA;
 
 static uint32_t overrun_errors = 0;
 static uint32_t uart_error_callbacks = 0;
@@ -85,7 +95,11 @@ FAST_DATA char test_fast_string[] = "Fast string!";
 FAST_DATA size_t tfs_len = sizeof(test_fast_string) - 1;
 
 // Tone Generator
-FAST_DATA tonegen_state tonegen1;
+FAST_BSS tonegen_state tonegen1;
+
+// Display controller (SPI & DMA & GPIO)
+FAST_BSS spidma_config_t spi_config;
+spidma_config_t *spip;
 
 // I2S output buffer for DMA
 // TODO: Move to SRAM2 which will only be used for DMA
@@ -175,6 +189,26 @@ void printWelcomeMessage(void) {
   serial_transmit((uint8_t *)WELCOME_MSG, strlen(WELCOME_MSG));
   serial_transmit((uint8_t *)MAIN_MENU, strlen(MAIN_MENU));
 }
+
+
+static void print_spi_queue_info(spidma_config_t *spi) {
+  char buf[200];
+  snprintf(buf, sizeof(buf),
+              "ql: %d, qr: %d, sdqf: %lu, iliqf: %lu, ilics: %lu; "
+              "fqf: %lu, bfqf: %lu; "
+              "maf: %lu, sz: %u; ili_allocs: %lu, sd_frees: %lu\r\n",
+
+              spidma_queue_length(spi), spidma_queue_remaining(spi),
+              spi->entry_queue_failures,
+              ili_queue_failures, ili_characters_skipped,
+
+              spi->free_queue_failures, spi->backup_free_queue_failures,
+
+              ili_mem_alloc_failures, ili_last_alloc_failure_size,
+              ili_mem_allocs, spi->mem_frees);
+  serial_transmit((uint8_t *)buf, strlen(buf));
+}
+
 
 
 static int prompted = 0;
@@ -282,6 +316,9 @@ uint8_t process_user_input(uint8_t opt) {
     break;
   case '6':
     HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+    break;
+  case '7':
+    print_spi_queue_info(spip);
     break;
   case 'a':
     HAL_GPIO_TogglePin(AUDIO_MUTE_GPIO_Port, AUDIO_MUTE_Pin);
@@ -441,6 +478,87 @@ void check_midi_synth() {
   }
 }
 
+
+/*
+ * Initialize our SPI/DMA display driver subsystem.
+ * If initialziation fails, we go into an infinite loop
+ * after sending a message on the serial console.
+ */
+void display_init() {
+  // Configure new DMA driver
+  spi_config.bank_cs = GPIO_PA15_SPI2_CS_GPIO_Port;
+  spi_config.pin_cs = GPIO_PA15_SPI2_CS_Pin;
+  spi_config.bank_dc = GPIO_PB8_SPI2_DC_GPIO_Port;
+  spi_config.pin_dc = GPIO_PB8_SPI2_DC_Pin;
+  spi_config.bank_reset = GPIO_PB5_SPI2_RESET_GPIO_Port;
+  spi_config.pin_reset = GPIO_PB5_SPI2_RESET_Pin;
+  spi_config.use_cs = 1;
+  spi_config.use_reset = 1;
+  spi_config.spi = &DISPLAY_SPI;
+  spi_config.dma_tx = &DISPLAY_DMA;
+
+  spip = &spi_config;
+
+  if (spidma_init(spip) != SDRV_OK) {
+    const char *msg = "spidma_init failed\r\n";
+    HAL_UART_Transmit(&CONSOLE_UART, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+    while (1) {}
+  }
+
+  spidma_ili9341_init(spip);
+  spidma_empty_queue(spip);
+}
+
+/*
+ * Displays my personal logo and information upon startup for a few seconds.
+ */
+void show_intro(spidma_config_t *spi) {
+  const char *msg = "Douglas P. Fields, Jr.";
+  size_t len = strlen(msg);
+  FontDef font = Font_11x18;
+  uint16_t x, y;
+
+  // TODO: Add my logo to the top with white parentheses and purple lambda
+
+  spidma_queue(spi, SPIDMA_SELECT, 0, NULL, 1000000);
+  spidma_ili9341_fill_screen(spi, ILI9341_BLACK);
+  x = (ILI9341_WIDTH - len * font.width) >> 1;
+  y = (ILI9341_HEIGHT - font.height) >> 1;
+  spidma_ili9341_write_string(spi, x, y,
+                              msg, font,
+                              ILI9341_WHITE, ILI9341_BLACK);
+  spidma_empty_queue(spi);
+
+  msg = "symbolics@lisp.engineer";
+  len = strlen(msg);
+  y += font.height;
+  x = (ILI9341_WIDTH - len * font.width) >> 1;
+  spidma_ili9341_write_string(spi, x, y,
+                              msg, font,
+                              ILI9341_YELLOW, ILI9341_BLACK);
+  spidma_empty_queue(spi);
+
+  msg = "STM32 Synth EVT#1";
+  len = strlen(msg);
+  y += font.height * 2;
+  x = (ILI9341_WIDTH - len * font.width) >> 1;
+  spidma_ili9341_write_string(spi, x, y,
+                              msg, font,
+                              ILI9341_GREEN, ILI9341_BLACK);
+  spidma_empty_queue(spi);
+
+  msg = "Software v" SOFTWARE_VERSION;
+  len = strlen(msg);
+  y += font.height * 2;
+  x = (ILI9341_WIDTH - len * font.width) >> 1;
+  spidma_ili9341_write_string(spi, x, y,
+                              msg, font,
+                              ILI9341_MAGENTA, ILI9341_BLACK);
+  spidma_empty_queue(spi);
+
+  HAL_Delay(5000);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void realmain() {
@@ -459,6 +577,9 @@ void realmain() {
   init_midi_buffers();
   tonegen_init(&tonegen1, 32000);
   tonegen_set(&tonegen1, 1024, 0); // Frequency, Amplitude
+
+  display_init();
+  show_intro(spip);
 
   // Start the DMA streams for I²S
   HAL_I2S_Transmit_DMA(&SOUND1, (uint16_t *)i2s_buff, I2S_BUFFER_SIZE);
