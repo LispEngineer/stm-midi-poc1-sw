@@ -50,6 +50,7 @@
  */
 
 #include <stdlib.h> // free()
+#include <stdbool.h>
 #include "stm32f7xx_hal.h"
 #include "spidma.h"
 
@@ -119,6 +120,7 @@ void spidma_init(spidma_config_t *spi) {
   // TODO: Make this a closure that knows which spidma_config_t was in use
   // (or at the least, a lookup table from the hspi to the spidma_config_t)
   HAL_SPI_RegisterCallback(spi->spi, HAL_SPI_TX_COMPLETE_CB_ID, spi_transfer_complete);
+  // TODO: Check return value
   is_sending = 0;
   current_sending_spi = NULL;
 
@@ -176,7 +178,7 @@ inline void spidma_dereset(spidma_config_t *spi) {
 }
 
 /** Returns non-zero if DMA channel is ready to send. */
-uint32_t spidma_is_dma_ready(spidma_config_t *spi) {
+bool spidma_is_dma_ready(spidma_config_t *spi) {
   return !is_sending;
   // return HAL_DMA_GetState(spi->dma_tx) == HAL_DMA_STATE_READY;
 }
@@ -196,15 +198,15 @@ uint32_t spidma_is_dma_ready(spidma_config_t *spi) {
  * 2 - DMA in use
  * non-zero - other errors
  */
-uint32_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
+spidma_return_value_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
   if (buff_size > 65535) {
-    return 1U;
+    return SDRV_TOO_BIG;
   }
 
   // Check if DMA is in use
   if (!spidma_is_dma_ready(spi)) {
     // Oops, DMA is in use
-    return 2U;
+    return SDRV_DMA_BUSY;
   }
 
   // Start a DMA transfer; set our status for the send complete callback
@@ -216,23 +218,24 @@ uint32_t spidma_write(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
     if (spi->synchronous) {
       spidma_wait_for_completion(spi);
     }
-    return 0;
+    return SDRV_OK;
   }
 
   // One of the HAL-not-OK values shifted to the next nibble
+  spi->last_hal_error = retval;
   is_sending = 0;
   current_sending_spi = NULL;
-  return retval << 4;
+  return SDRV_HAL_ERROR;
 }
 
 /** This asserts the command signal and then sends the specified data
  * using spidma_write().
  */
-uint32_t spidma_write_command(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
+spidma_return_value_t spidma_write_command(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
   // Check if DMA is in use
   if (!spidma_is_dma_ready(spi)) {
     // Oops, DMA is in use
-    return 2U;
+    return SDRV_DMA_BUSY;
   }
 
   HAL_GPIO_WritePin(spi->bank_dc, spi->pin_dc, GPIO_PIN_RESET);
@@ -243,11 +246,11 @@ uint32_t spidma_write_command(spidma_config_t *spi, uint8_t *buff, size_t buff_s
 /** This asserts the data signal and then sends the specified data
  * using spidma_write().
  */
-uint32_t spidma_write_data(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
+spidma_return_value_t spidma_write_data(spidma_config_t *spi, uint8_t *buff, size_t buff_size) {
   // Check if DMA is in use
   if (!spidma_is_dma_ready(spi)) {
     // Oops, DMA is in use
-    return 2U;
+    return SDRV_DMA_BUSY;
   }
 
   HAL_GPIO_WritePin(spi->bank_dc, spi->pin_dc, GPIO_PIN_SET);
@@ -262,8 +265,6 @@ uint32_t spidma_write_data(spidma_config_t *spi, uint8_t *buff, size_t buff_size
 void spidma_wait_for_completion(spidma_config_t *spi) {
   while (!spidma_is_dma_ready(spi));
 }
-
-
 
 /*
  * Calculate the next queue entry from the current one.
@@ -281,16 +282,16 @@ static inline spiq_size_t next_entry(spiq_size_t x) {
 
 
 /*
- * Returns 0 if we cannot add a backup free'ing entry.
+ * Returns queueing status. We ignore requests to queue NULLs.
  *
  * We add something by incrementing the tail.
  * We read from the head.
  */
-static uint32_t spidma_backup_free_queue(spidma_config_t *spi, void *buff) {
+static spidma_return_value_t spidma_backup_free_queue(spidma_config_t *spi, void *buff) {
   if (NULL == buff) {
     // We do not add nulls, even if requested, but we pretend
     // it worked
-    return 2;
+    return SDRV_QUEUE_IGNORED;
   }
 
   spiq_size_t c = spi->tail_backup_free;
@@ -299,13 +300,13 @@ static uint32_t spidma_backup_free_queue(spidma_config_t *spi, void *buff) {
   // Check if full
   if (spi->head_backup_free == n) {
     spi->backup_free_queue_failures++;
-    return 0;
+    return SDRV_QUEUE_FULL;
   }
   // Add entry
   spi->backup_free_entries[c] = buff;
   spi->tail_backup_free = n;
 
-  return 1;
+  return SDRV_OK;
 }
 
 /*
@@ -330,17 +331,17 @@ static void *spidma_backup_free_dequeue(spidma_config_t *spi) {
  * Checks if the DMA sending queue is full. It's full when
  * the tail is directly behind the head.
  */
-static inline uint32_t spidma_is_queue_full(spidma_config_t *spi) {
+static inline bool spidma_is_queue_full(spidma_config_t *spi) {
   return spi->head_entry == next_entry(spi->tail_entry);
 }
 
 /*
- * Returns 0 if we cannot add a queue entry.
+ * Returns status of queueing attempt.
  *
  * We add something by incrementing the tail.
  * We read from the head.
  */
-uint32_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
+spidma_return_value_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
                                 uint8_t *buff, uint32_t identifier, uint8_t repeats,
                                 uint8_t should_free) {
 
@@ -358,10 +359,10 @@ uint32_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_
       // (Sometimes a buffer is used for multiple queue
       // entries and is only marked for freeing in the last
       // use queue'd.)
-      uint32_t queued = spidma_backup_free_queue(spi, buff);
+      spidma_return_value_t queued = spidma_backup_free_queue(spi, buff);
       // TODO: Check if that worked, return a special message?
     }
-    return 0;
+    return SDRV_QUEUE_FULL;
   }
 
   // Update the tail
@@ -376,26 +377,28 @@ uint32_t spidma_queue_repeats(spidma_config_t *spi, uint8_t type, uint16_t buff_
   entry->repeats = repeats;
   entry->should_free = should_free;
 
-  return 1;
+  return SDRV_OK;
 }
 
 /** Queues this buffer for sending with 0 repeats and no freeing */
-uint32_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
-                       uint8_t *buff, uint32_t identifier) {
+spidma_return_value_t spidma_queue(spidma_config_t *spi, uint8_t type, uint16_t buff_size,
+                                    uint8_t *buff, uint32_t identifier) {
   return spidma_queue_repeats(spi, type, buff_size, buff, identifier, 0, 0);
 }
 
 /*
- * Returns 0 if we cannot add a free'ing entry.
+ * Returns queueing status.
+ *
+ * We ignore requests to queue a NULL for freeing. :)
  *
  * We add something by incrementing the tail.
  * We read from the head.
  */
-uint32_t spidma_free_queue(spidma_config_t *spi, void *buff) {
+spidma_return_value_t spidma_free_queue(spidma_config_t *spi, void *buff) {
   if (NULL == buff) {
     // We do not add nulls, even if requested, but we pretend
     // it worked
-    return 2;
+    return SDRV_QUEUE_IGNORED;
   }
 
   spiq_size_t c = spi->tail_free;
@@ -407,13 +410,13 @@ uint32_t spidma_free_queue(spidma_config_t *spi, void *buff) {
     // TODO: Add this to the backup free queue instead?
     // If that also fails, we have big problems and the
     // caller has to deal with it.
-    return 0;
+    return SDRV_QUEUE_FULL;
   }
   // Add entry
   spi->free_entries[c] = buff;
   spi->tail_free = n;
 
-  return 1;
+  return SDRV_OK;
 }
 
 /*
@@ -443,25 +446,24 @@ static void spidma_do_backup_free_queue_freeing(spidma_config_t *spi) {
   }
 }
 
-
 /*
  * Processes the next queue entry, if necessary,
  * or continues waiting.
  *
  * Return values:
- * 0 - nothing to do
- * 1 - we are in a delay
- * 2 - we ended a delay and have nothing more to do
- * 3 - DMA is busy sending still
- * 4 - invalid type dequeued; nothing done
- * 5 - delay begun
- * 6 - SPI DMA transfer begun
- * 7 - SPI aux pin set (Select, Reset)
+ * SDAS_NOTHING - nothing to do
+ * SDAS_IN_DELAY - we are in a delay
+ * SDAS_ENDED_DELAY_NOTHING - we ended a delay and have nothing more to do
+ * SDAS_DMA_BUSY - DMA is busy sending still
+ * SDAS_INVALID_NOTHING - invalid type dequeued; nothing done
+ * SDAS_DELAY_STARTED - delay begun
+ * SDAS_DMA_STARTED - SPI DMA transfer begun
+ * SDAS_AUX_SET - SPI aux pin set (Select, Reset)
  * FIXME: Make these return values into an enum
  */
-uint32_t spidma_check_activity(spidma_config_t *spi) {
-  uint32_t nothing_to_do = 0;
-  uint32_t retval;
+spidma_activity_status_t spidma_check_activity(spidma_config_t *spi) {
+  spidma_activity_status_t nothing_to_do = SDAS_NOTHING;
+  spidma_activity_status_t retval;
   void *freeable;
 
   // Free all memory waiting to be freed
@@ -475,17 +477,17 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
     if (spi->delay_until == HAL_GetTick()) {
       // We are done delaying
       spi->in_delay = 0;
-      nothing_to_do = 2;
+      nothing_to_do = SDAS_ENDED_DELAY_NOTHING;
       // Fall through to do the next thing
     } else {
       // Continue delaying - do nothing here
-      return 1;
+      return SDAS_IN_DELAY;
     }
   }
 
   // Check if we can do anything
   if (is_sending) {
-    return 3;
+    return SDAS_DMA_BUSY;
   }
 
   if (spi->head_entry == spi->tail_entry) {
@@ -510,40 +512,40 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
   case SPIDMA_DATA:
     spidma_write_data(spi, e->buff, e->buff_size);
     // TODO: Check return value
-    retval = 6;
+    retval = SDAS_DMA_STARTED;
     break;
   case SPIDMA_COMMAND:
     spidma_write_command(spi, e->buff, e->buff_size);
     // TODO: Check return value
-    retval = 6;
+    retval = SDAS_DMA_STARTED;
     break;
   case SPIDMA_UNCHANGED:
     spidma_write(spi, e->buff, e->buff_size);
-    retval = 6;
+    retval = SDAS_DMA_STARTED;
     break;
   case SPIDMA_DELAY:
     spi->in_delay = 1;
     spi->delay_until = HAL_GetTick() + e->buff_size;
-    retval = 5;
+    retval = SDAS_DELAY_STARTED;
     break;
   case SPIDMA_RESET:
     spidma_reset(spi);
-    retval = 7;
+    retval = SDAS_AUX_SET;
     break;
   case SPIDMA_UNRESET:
     spidma_dereset(spi);
-    retval = 7;
+    retval = SDAS_AUX_SET;
     break;
   case SPIDMA_SELECT:
     spidma_select(spi);
-    retval = 7;
+    retval = SDAS_AUX_SET;
     break;
   case SPIDMA_DESELECT:
     spidma_deselect(spi);
-    retval = 7;
+    retval = SDAS_AUX_SET;
     break;
   default:
-    retval = 4;
+    retval = SDAS_INVALID_NOTHING;
     break;
   }
 
@@ -568,8 +570,7 @@ uint32_t spidma_empty_queue(spidma_config_t *spi) {
   // Run the queue until it's empty
   uint32_t retval = 0;
 
-  // 0 = nothing to do
-  while (spidma_check_activity(spi) != 0) {
+  while (spidma_check_activity(spi) != SDAS_NOTHING) {
     retval++;
   }
 

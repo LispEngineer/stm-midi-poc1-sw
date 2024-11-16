@@ -35,18 +35,53 @@ typedef enum spidma_entry_type {
 } spidma_entry_type_t;
 
 /*
+* Return values:
+* 0 - nothing to do
+* 1 - we are in a delay
+* 2 - we ended a delay and have nothing more to do
+* 3 - DMA is busy sending still
+* 4 - invalid type dequeued; nothing done
+* 5 - delay begun
+* 6 - SPI DMA transfer begun
+* 7 - SPI aux pin set (Select, Reset)
+*/
+typedef enum spidma_activity_status {
+  SDAS_NOTHING,
+  SDAS_IN_DELAY,
+  SDAS_ENDED_DELAY_NOTHING,
+  SDAS_DMA_BUSY,
+  SDAS_INVALID_NOTHING,
+  SDAS_DELAY_STARTED,
+  SDAS_DMA_STARTED,
+  SDAS_AUX_SET
+} spidma_activity_status_t;
+
+typedef enum spidma_return_value {
+  SDRV_QUEUE_FULL,
+  SDRV_OK,
+  SDRV_QUEUE_IGNORED, // Usually because we asked to queue something invalid like a NULL to free
+  SDRV_TOO_BIG,
+  SDRV_DMA_BUSY,
+  SDRV_HAL_ERROR // HAL error - see last_hal_error
+} spidma_return_value_t;
+
+
+/*
  * This structure holds a single entry for things
  * that should be sent over the SPI bus in a queue.
  */
 typedef struct spidma_entry {
-  uint8_t  type;
-  uint16_t buff_size; // DMA can handle 65535 maximum send
-  uint8_t *buff;
   // User-assigned identifier of this queue entry
   uint32_t identifier;
+  // What we should do
+  spidma_entry_type_t type;
+  // Buffer if we need to send something
+  uint8_t *buff;
+  uint16_t buff_size; // DMA can handle 65535 maximum send
   // How many times should we repeat this entry?
   uint8_t  repeats;
   // Should we free the buff after we are done?
+  // TODO: Make this a bit-mask with other flags if needed
   uint8_t  should_free;
 } spidma_entry_t;
 
@@ -97,6 +132,9 @@ typedef struct spidma_config {
   // the necessary action (e.g., freeing memory)
   spidma_entry_t current_entry;
 
+  // Whenever we get a HAL error, we put it here
+  HAL_StatusTypeDef last_hal_error;
+
   // Our sending ring buffer
   // Note that none of this code is thread-safe or re-entrant
   spidma_entry_t entries[NUM_SPI_ENTRIES];
@@ -136,29 +174,29 @@ void spidma_dereset(spidma_config_t *);
 
 // Functions to actually send data over the SPI; the data/command
 // GPIO is set by two of these and ignored by the third.
-uint32_t spidma_write(spidma_config_t *, uint8_t *buff, size_t buff_size);
-uint32_t spidma_write_command(spidma_config_t *, uint8_t *buff, size_t buff_size);
-uint32_t spidma_write_data(spidma_config_t *, uint8_t *buff, size_t buff_size);
+spidma_return_value_t spidma_write(spidma_config_t *, uint8_t *buff, size_t buff_size);
+spidma_return_value_t spidma_write_command(spidma_config_t *, uint8_t *buff, size_t buff_size);
+spidma_return_value_t spidma_write_data(spidma_config_t *, uint8_t *buff, size_t buff_size);
 
 // Helper that just spins until there is no DMA running
 // (the busy flag is reset by interrupt, so don't disable interrupts).
 void spidma_wait_for_completion(spidma_config_t *);
 
 // SPI transmit queue functions
-uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t); // 0 repeats, no freeing
-uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *,
+spidma_return_value_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t); // 0 repeats, no freeing
+spidma_return_value_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *,
                                 uint32_t, uint8_t repeats, uint8_t should_free);
 spiq_size_t spidma_queue_length(spidma_config_t *spi);
 spiq_size_t spidma_queue_remaining(spidma_config_t *spi);
 
 
 // This needs to be called regularly to keep the SPI queue emptied.
-uint32_t spidma_check_activity(spidma_config_t *spi);
+spidma_activity_status_t spidma_check_activity(spidma_config_t *spi);
 // This busy waits until the queue is totally empty.
 uint32_t spidma_empty_queue(spidma_config_t *spi);
 
 // SPI memory free queue functions
-uint32_t spidma_free_queue(spidma_config_t *spi, void *buff);
+spidma_return_value_t spidma_free_queue(spidma_config_t *spi, void *buff);
 void *spidma_free_dequeue(spidma_config_t *spi);
 
 // TODO: Function to drain the SPI queue in a busy loop
