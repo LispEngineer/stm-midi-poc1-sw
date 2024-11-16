@@ -32,11 +32,10 @@ typedef enum spidma_entry_type {
  */
 typedef struct spidma_entry {
   uint8_t  type;
-  uint16_t buff_size;
+  uint16_t buff_size; // DMA can handle 65535 maximum send
   uint8_t *buff;
   // User-assigned identifier of this queue entry
   uint32_t identifier;
-  // TODO: Should we have a flag to allow a free(buff)?
   // How many times should we repeat this entry?
   uint8_t  repeats;
   // Should we free the buff after we are done?
@@ -76,6 +75,7 @@ typedef struct spidma_config {
 
   // Should we "fake" being synchronous by waiting for
   // the DMA to finish?
+  // FIXME: Remove this functionality
   uint8_t synchronous;
 
   // The HAL type for the SPI port we're using,
@@ -84,24 +84,30 @@ typedef struct spidma_config {
   DMA_HandleTypeDef *dma_tx;
 
   // TODO: Flag set when we're sending - reset by interrupt
-  // Just before we do anything, we set this to what we're doing
+  // Just before we do anything using DMA, we set this to what we're doing,
+  // so that after the DMA finishes, we know what we did and can take
+  // the necessary action (e.g., freeing memory)
   spidma_entry_t current_entry;
 
-  // Our sending buffer
-  // Note that none of this code is thread-safe
+  // Our sending ring buffer
+  // Note that none of this code is thread-safe or re-entrant
   spidma_entry_t entries[NUM_SPI_ENTRIES];
   spiq_size_t head_entry; // When head == tail, queue is EMPTY
   spiq_size_t tail_entry;
+
+  // Our delay handling variables
   uint8_t  in_delay;
   uint32_t delay_until;
 
-  // Our freeing buffer - memory we will free later
+  // Our freeing ring buffer - memory we will free
+  // identified in an interrupt and actually free'd later
   void *      free_entries[NUM_SPI_ENTRIES];
   spiq_size_t head_free; // When head == tail, queue is EMPTY
   spiq_size_t tail_free;
 } spidma_config_t;
 
 
+// Required to be called prior to anything else
 void spidma_init(spidma_config_t *);
 
 // Functions to handle the CS and RESET pins
