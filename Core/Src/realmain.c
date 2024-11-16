@@ -35,7 +35,7 @@
 #  define FAST_DATA
 #endif
 
-#define SOFTWARE_VERSION "11.1"
+#define SOFTWARE_VERSION "12"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
@@ -566,6 +566,25 @@ void show_intro(spidma_config_t *spi) {
   // HAL_Delay(5000);
 }
 
+uint32_t last_mute = 776655; // Pick a value not GPIO_PIN_RESET or _SET
+
+void draw_mute() {
+  GPIO_PinState am = HAL_GPIO_ReadPin(AUDIO_MUTE_GPIO_Port, AUDIO_MUTE_Pin);
+
+  if (am != last_mute) {
+    last_mute = am;
+    if (am == GPIO_PIN_RESET) {
+      spidma_ili9341_write_string(spip, 0, Font_11x18.height * 2,
+                                  "muted", Font_11x18,
+                                  ILI9341_RED, ILI9341_BLACK);
+    } else {
+      spidma_ili9341_write_string(spip, 0, Font_11x18.height * 2,
+                                  ".....", Font_11x18,
+                                  ILI9341_GREEN, ILI9341_BLACK);
+    }
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void realmain() {
@@ -611,6 +630,11 @@ void realmain() {
 
     // Handle our display
     spidma_check_activity(spip);
+
+    // Update our mute display
+    draw_mute();
+    // TODO: Display state of I2S
+    // TODO: Display state of tone generator
 
     // Put a dot every N (million) times through this loop
     counter++;
