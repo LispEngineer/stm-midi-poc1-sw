@@ -2,7 +2,7 @@
  * spidma.h
  *
  *  Created on: 2024-11-11
- *  Updated on: 2024-11-12
+ *  Updated on: 2024-11-15
  *      Author: Douglas P. Fields, Jr. - symbolics@lisp.engineer
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
