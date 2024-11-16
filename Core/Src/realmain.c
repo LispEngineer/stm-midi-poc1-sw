@@ -26,11 +26,14 @@
 #include "spidma_ili9341.h"
 #include "fonts.h"
 
+#ifdef USE_FAST_MEMORY
 // When we set up our memory map, use these
-// #define FAST_BSS __attribute((section(".fast_bss")))
-// #define FAST_DATA __attribute((section(".fast_data")))
-#define FAST_BSS
-#define FAST_DATA
+#  define FAST_BSS __attribute((section(".fast_bss")))
+#  define FAST_DATA __attribute((section(".fast_data")))
+#else // Don't USE_FAST_MEMORY
+#  define FAST_BSS
+#  define FAST_DATA
+#endif
 
 #define SOFTWARE_VERSION "11.1"
 
@@ -474,6 +477,10 @@ void check_midi_synth() {
       midi_snprintf(msg, sizeof(msg) - 1, &mm);
       serial_transmit((uint8_t *)msg, strlen(msg));
       serial_transmit((uint8_t *)"\r\n", 2);
+
+      // And display it on the screen
+      spidma_ili9341_fill_rectangle(spip, 0, 0, ILI9341_WIDTH, Font_7x10.height * 2, ILI9341_BLACK);
+      spidma_ili9341_write_string(spip, 0, 0, msg, Font_7x10, ILI9341_CYAN, ILI9341_BLACK);
     }
   }
 }
@@ -556,7 +563,7 @@ void show_intro(spidma_config_t *spi) {
                               ILI9341_MAGENTA, ILI9341_BLACK);
   spidma_empty_queue(spi);
 
-  HAL_Delay(5000);
+  // HAL_Delay(5000);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -601,6 +608,9 @@ void realmain() {
     // Now do everything in an entirely non-blocking way
     opt = read_user_input();
     processed_input = process_user_input(opt);
+
+    // Handle our display
+    spidma_check_activity(spip);
 
     // Put a dot every N (million) times through this loop
     counter++;
