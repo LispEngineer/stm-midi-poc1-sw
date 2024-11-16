@@ -72,6 +72,14 @@ static uint8_t init_[]   = {  };
 static uint8_t init_d[]  = {  };
 */
 
+/*
+ * Queue SPIDMA commands to fully initialize the ILI9341 display,
+ * then execute them synchronously by dequeuing all of them.
+ * This also means that the SPIDMA queue needs to be deep enough
+ * (which is some 40-odd right now).
+ *
+ * Display initialization based upon https://github.com/afiskon/stm32-ili9341 .
+ */
 void spidma_ili9341_init(spidma_config_t *spi) {
   // Queue all the commands to do a full reset
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 100);
@@ -181,9 +189,9 @@ void spidma_ili9341_init(spidma_config_t *spi) {
 
 
 /*
- * Allocates a memory buffer and sets it to auto-free, to set the
- * next pixel data write to a certain rectangle.
-// Hacky DMA synchronous version
+ * Set the next data write to a certain rectangle of pixel memory.
+ *
+ * NOTE: Hacky DMA synchronous version
  */
 void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 
@@ -231,10 +239,22 @@ void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16
   while (spidma_check_activity(spi) != 0); // 0 = nothing to do
 }
 
+// The size of this buffer must be:
+// Not less than 1/250th of the size of the display memory
+// (in terms of number of pixels), because we can only
+// repeat up to 255 times.
+// Since we're 76,800 pixels (240x320), 1024 would provide
+// us 1/75th, so we're good.
+// We use a power-of-two size so we can divide
+// quickly and easily using a shift.
 #define FILL_RECT_BUFF_SZ 1024
 #define FILL_RECT_BUFF_SHIFT 10
-static uint16_t fill_rect_buff[FILL_RECT_BUFF_SZ];
 
+/*
+ * Fill a rectangle of the display with a fixed color.
+ *
+ * NOTE: Hacky DMA synchronous version
+ */
 void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
   // clipping
   if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) return;
@@ -250,8 +270,17 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   uint16_t inv_color = ((color & 0xFF) << 8) | (color >> 8);
   uint8_t repeats;
   size_t remainder;
+  uint8_t auto_free;
 
   size_t buff_end = end_pos > FILL_RECT_BUFF_SZ ? FILL_RECT_BUFF_SZ : end_pos;
+  uint16_t *fill_rect_buff = (uint16_t *)malloc(buff_end * sizeof(uint16_t));
+
+  // Check return value for memory exhaustion
+  if (NULL == fill_rect_buff) {
+    // Toggle the blue LED
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    return;
+  }
 
   // Set everything we're sending (up to buffer size) first
   for (pos = 0; pos < buff_end; pos++) {
@@ -259,16 +288,20 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   }
   // Calculate the # of repeats
   repeats = end_pos >> FILL_RECT_BUFF_SHIFT; // 1500 / 1024 = 1
+  remainder = end_pos - (repeats << FILL_RECT_BUFF_SHIFT);
+  auto_free = remainder == 0;
 
   // Add all the repeats, if any
   if (repeats > 0) {
-    remainder = end_pos - (repeats << FILL_RECT_BUFF_SHIFT);
+    // If this is a perfect number of repeats, we need to free
     // Final 0 means "don't auto-free this buffer"
-    spidma_queue_repeats(spi, SPIDMA_DATA, FILL_RECT_BUFF_SZ * 2, (uint8_t *)fill_rect_buff, 20010, repeats - 1, 0);
-    end_pos = remainder;
+    spidma_queue_repeats(spi, SPIDMA_DATA, FILL_RECT_BUFF_SZ * 2, (uint8_t *)fill_rect_buff, 20010, repeats - 1, auto_free);
   }
-  if (end_pos > 0) {
-    spidma_queue(spi, SPIDMA_DATA, end_pos * 2, (uint8_t *)fill_rect_buff, 20020);
+
+  // If there is non-perfect multiple, then we need to send the final
+  // pixels out and then also free the buffer
+  if (remainder > 0) {
+    spidma_queue_repeats(spi, SPIDMA_DATA, remainder * 2, (uint8_t *)fill_rect_buff, 20020, 0, 1); // No repeats & auto-free
   }
 
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 20030);
@@ -277,10 +310,21 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   while (spidma_check_activity(spi) != 0); // 0 = nothing to do
 }
 
+/*
+ * Fills the entire screen (per defined screen size) with a given color.
+ *
+ * TODO: Make the screen size configurable in spidma_config_t?
+ */
 void spidma_ili9341_fill_screen(spidma_config_t *spi, uint16_t color) {
   spidma_ili9341_fill_rectangle(spi, 0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, color);
 }
 
+/*
+ * Draws a single pixel of a single color on the screen.
+ *
+ * NOTE: Super inefficiently implemented. Try not to use this. :)
+ * It's more of a proof of concept than something useful.
+ */
 void spidma_ili9341_draw_pixel(spidma_config_t *spi, uint16_t x, uint16_t y, uint16_t color) {
   if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT))
       return;
@@ -288,6 +332,14 @@ void spidma_ili9341_draw_pixel(spidma_config_t *spi, uint16_t x, uint16_t y, uin
   spidma_ili9341_fill_rectangle(spi, x, y, 1, 1, color);
 }
 
+/*
+ * Write a single character to the screen at the specified location,
+ * with the specified foreground and background colors.
+ * The font size is specified in FontDef. This allocates w * h * 2 bytes
+ * of memory.
+ *
+ * NOTE: Hacky DMA synchronous version
+ */
 // TODO: make this take a buffer to use to write to.
 // If not provided, then allocate one and auto-free it.
 // If provided, do NOT auto-free it unless the caller tells us to.
@@ -331,7 +383,6 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
   while (spidma_check_activity(spi) != 0); // 0 = nothing to do
 }
 
-
 /*
  * Returns next drawing position:
  * y in the top 16 bits
@@ -343,7 +394,9 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
  *
  * Realize that this could use a lot of RAM and fill up
  * the SPI transmit queue if we have a lot of characters.
+ * So don't send too many characters at a time...
  *
+ * NOTE: Hacky DMA synchronous version
  */
 uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
                                         const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
@@ -370,7 +423,7 @@ uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t 
     str++;
   }
 
-  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 40000);
+  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 40010);
 
   // Run the queue until it's empty
   while (spidma_check_activity(spi) != 0); // 0 = nothing to do
@@ -389,8 +442,11 @@ static const size_t chunk_size = 65000;
  * data must be a pointer into DMA-from-able memory.
  * This does NOT seem to include Flash in STM32F7.
  */
+// TODO: Enhance SPIDMA to be able to do DMA direct from flash by having
+// the SPIDMA figure that out in its queue manager, and copy the flash bit
+// by bit into RAM and then DMA'ing it out to SPI without
 void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
-                                  uint16_t w, uint16_t h, const uint16_t* data,
+                                  uint16_t w, uint16_t h, const uint16_t *data,
                                   uint32_t copy_data) {
   // Limits check
   if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT))
@@ -434,6 +490,11 @@ void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
 static uint8_t ili9341_invert_on = 0x21;  // INVON
 static uint8_t ili9341_invert_off = 0x20; // INVOFF
 
+/*
+ * Send a command to invert or uninvert the ILI9341 display.
+ *
+ * NOTE: Hacky DMA synchronous version
+ */
 void spidma_ili9341_invert(spidma_config_t *spi, bool invert) {
   spidma_queue(spi, SPIDMA_SELECT, 0, 0, 60000);
   spidma_queue(spi, SPIDMA_COMMAND, 1, invert ? &ili9341_invert_on : &ili9341_invert_off, 60010);
