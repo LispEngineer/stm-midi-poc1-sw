@@ -11,8 +11,8 @@
 #ifndef INC_SPIDMA_H_
 #define INC_SPIDMA_H_
 
-#define NUM_SPI_ENTRIES ((size_t)128)   // This must be a power of two
-#define SPI_ENTRY_MASK  ((size_t)0x7F)  // A mask of the number of bits to hold the value above from 0 to that minus 1
+#define NUM_SPI_ENTRIES ((size_t)256)   // This must be a power of two
+#define SPI_ENTRY_MASK  ((size_t)0xFF)  // A mask of the number of bits to hold the value above from 0 to that minus 1
 typedef uint16_t spiq_size_t;
 
 typedef enum spidma_entry_type {
@@ -104,6 +104,7 @@ typedef struct spidma_config {
   void *      free_entries[NUM_SPI_ENTRIES];
   spiq_size_t head_free; // When head == tail, queue is EMPTY
   spiq_size_t tail_free;
+  uint32_t    mem_frees;
 } spidma_config_t;
 
 

@@ -23,6 +23,11 @@
 #include "fonts.h"
 #include "spidma_ili9341.h"
 
+uint32_t ili_mem_alloc_failures = 0;
+uint32_t ili_mem_allocs = 0;
+size_t ili_last_alloc_failure_size;
+uint32_t ili_queue_failures = 0;
+
 static uint8_t init_0[]   = { 0x01 }; // Command SOFTWARE RESET
 static uint8_t init_1[]   = { 0xCB }; // Command POWER CONTROL A
 static uint8_t init_1d[]  = { 0x39, 0x2C, 0x00, 0x34, 0x02 }; // Data for above
@@ -196,13 +201,17 @@ void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16
 
   // We allocate a buffer for the entire multi-step transaction and free it
   // after the last bit of it is used up.
+  uint32_t queued;
   const size_t SAW_BUFF_SIZE = 1 + 4 + 1 + 4 + 1;
   uint8_t *buff = (uint8_t *)malloc(SAW_BUFF_SIZE);
+  ili_mem_allocs++;
 
   // Check return value for memory exhaustion
   if (NULL == buff) {
     // Toggle the blue LED
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    ili_mem_alloc_failures++;
+    ili_last_alloc_failure_size = SAW_BUFF_SIZE;
     return;
   }
 
@@ -232,7 +241,13 @@ void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16
   // write to RAM
   // no repeats, and yes please free this buffer at the end.
   // (Hence, this must be the original malloc'd buffer!)
-  spidma_queue_repeats(spi, SPIDMA_COMMAND, 1, buff, 10040, 0, 1);
+  queued = spidma_queue_repeats(spi, SPIDMA_COMMAND, 1, buff, 10040, 0, 1);
+
+  if (!queued) {
+    // Memory won't be freed, so we have a memory leak. We need a backup
+    // mechanism for freeing memory.
+    ili_queue_failures++;
+  }
 }
 
 // The size of this buffer must be:
@@ -266,14 +281,18 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   uint8_t repeats;
   size_t remainder;
   uint8_t auto_free;
+  uint32_t queued = 1;
 
   size_t buff_end = end_pos > FILL_RECT_BUFF_SZ ? FILL_RECT_BUFF_SZ : end_pos;
   uint16_t *fill_rect_buff = (uint16_t *)malloc(buff_end * sizeof(uint16_t));
+  ili_mem_allocs++;
 
   // Check return value for memory exhaustion
   if (NULL == fill_rect_buff) {
     // Toggle the blue LED
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    ili_mem_alloc_failures++;
+    ili_last_alloc_failure_size = buff_end * sizeof(uint16_t);
     return;
   }
 
@@ -290,13 +309,19 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
   if (repeats > 0) {
     // If this is a perfect number of repeats, we need to free
     // Final 0 means "don't auto-free this buffer"
-    spidma_queue_repeats(spi, SPIDMA_DATA, FILL_RECT_BUFF_SZ * 2, (uint8_t *)fill_rect_buff, 20010, repeats - 1, auto_free);
+    queued = spidma_queue_repeats(spi, SPIDMA_DATA, FILL_RECT_BUFF_SZ * 2, (uint8_t *)fill_rect_buff, 20010, repeats - 1, auto_free);
   }
 
   // If there is non-perfect multiple, then we need to send the final
   // pixels out and then also free the buffer
   if (remainder > 0) {
-    spidma_queue_repeats(spi, SPIDMA_DATA, remainder * 2, (uint8_t *)fill_rect_buff, 20020, 0, 1); // No repeats & auto-free
+    queued = spidma_queue_repeats(spi, SPIDMA_DATA, remainder * 2, (uint8_t *)fill_rect_buff, 20020, 0, 1); // No repeats & auto-free
+  }
+
+  if (!queued) {
+    // Memory won't be freed, so we have a memory leak. We need a backup
+    // mechanism for freeing memory.
+    ili_queue_failures++;
   }
 }
 
@@ -334,13 +359,17 @@ void spidma_ili9341_draw_pixel(spidma_config_t *spi, uint16_t x, uint16_t y, uin
 void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
                                   char ch, FontDef font, uint16_t color, uint16_t bgcolor) {
   uint32_t i, b, j;
+  uint32_t queued;
   size_t buff_size = sizeof(uint16_t) * font.height * font.width;
   uint16_t *buff = (uint16_t *)malloc(buff_size);
+  ili_mem_allocs++;
 
   // Check return value for memory exhaustion
   if (NULL == buff) {
     // Toggle the blue LED
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+    ili_mem_alloc_failures++;
+    ili_last_alloc_failure_size = buff_size;
     return;
   }
 
@@ -365,7 +394,13 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
   }
 
   spidma_ili9341_set_address_window(spi, x, y, x + font.width - 1, y + font.height - 1);
-  spidma_queue_repeats(spi, SPIDMA_DATA, buff_size, (uint8_t *)buff, 30000, 0, 1); // Don't repeat & auto-free
+  queued = spidma_queue_repeats(spi, SPIDMA_DATA, buff_size, (uint8_t *)buff, 30000, 0, 1); // Don't repeat & auto-free
+
+  if (!queued) {
+    // Memory won't be freed, so we have a memory leak. We need a backup
+    // mechanism for freeing memory.
+    ili_queue_failures++;
+  }
 }
 
 /*

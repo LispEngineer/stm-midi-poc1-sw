@@ -259,4 +259,11 @@ Font
 The memory not allocateable LED is on. Could it be memory fragmentation?
 Memory not being freed?
 
-Not yet debugged.
+I see the problem: When we allocate a buffer, we expect it to be free'd
+automatically, but if the SPI queue size is exceeded, then it won't get free'd!
+We need a way to ensure freeing of possibly used memory even when the SPI
+queue is not empty, so add a backup free queue that will only be free'd
+once the SPI queue is entirely empty.
+
+Also, don't attempt to alloc and queue stuff if you don't have enough room
+in the queue!

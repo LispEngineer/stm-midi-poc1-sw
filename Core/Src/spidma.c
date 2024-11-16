@@ -115,6 +115,7 @@ void spidma_init(spidma_config_t *spi) {
   spi->tail_entry = 0;
   spi->head_free = 0;
   spi->tail_free = 0;
+  spi->mem_frees = 0;
 
   // Set up the status flags
   spi->in_delay = 0;
@@ -372,6 +373,7 @@ uint32_t spidma_check_activity(spidma_config_t *spi) {
   // Free all memory waiting to be freed
   while ((freeable = spidma_free_dequeue(spi)) != NULL) {
     free(freeable);
+    spi->mem_frees++;
   }
 
   // Handle our delay function
@@ -476,6 +478,6 @@ uint32_t spidma_empty_queue(spidma_config_t *spi) {
 }
 
 spiq_size_t spidma_queue_length(spidma_config_t *spi) {
-  return (spi->head_entry - spi->tail_entry) & SPI_ENTRY_MASK;
+  return (spi->tail_entry - spi->head_entry) & SPI_ENTRY_MASK;
 }
 

@@ -63,6 +63,14 @@
 
 ///////////////////////////////////////////////////
 
+extern uint32_t ili_mem_alloc_failures;
+extern size_t ili_last_alloc_failure_size;
+extern uint32_t ili_mem_allocs;
+extern uint32_t ili_queue_failures;
+
+
+///////////////////////////////////////////////////
+
 void spidma_ili9341_init(spidma_config_t *spi);
 void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
@@ -76,7 +84,5 @@ void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
                                   uint16_t w, uint16_t h, const uint16_t* data,
                                   uint32_t copy_data);
 void spidma_ili9341_invert(spidma_config_t *spi, bool invert);
-
-
 
 #endif /* INC_SPIDMA_ILI9341_H_ */

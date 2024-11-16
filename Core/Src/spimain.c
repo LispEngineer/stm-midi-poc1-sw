@@ -43,7 +43,10 @@ static void UART_Printf(const char* fmt, ...) {
 }
 
 static void print_queue_length(spidma_config_t *spi, int id) {
-  UART_Printf("%d ql: %d\r\n", id, (int)spidma_queue_length(spi));
+  UART_Printf("%d - ql: %d, qf: %d; maf: %u, sz: %u; allocs: %u, frees: %u\r\n", id, (int)spidma_queue_length(spi),
+              ili_queue_failures,
+              ili_mem_alloc_failures, ili_last_alloc_failure_size,
+              ili_mem_allocs, DISPLAY_SPI.mem_frees);
 }
 
 
