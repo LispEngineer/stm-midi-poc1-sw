@@ -16,10 +16,10 @@
 typedef uint16_t spiq_size_t;
 
 typedef enum spidma_entry_type {
-  SPIDMA_DATA,      // Set the D/C flag to Data
-  SPIDMA_COMMAND,   // Set the D/C flag to Command
-  SPIDMA_UNCHANGED, // Do not change the D/C flag setting
-  SPIDMA_DELAY,     // buff_size is number of milliseconds
+  SPIDMA_DATA,      // Set the D/C flag to Data - and send data
+  SPIDMA_COMMAND,   // Set the D/C flag to Command - and send data
+  SPIDMA_UNCHANGED, // Do not change the D/C flag setting - and send data
+  SPIDMA_DELAY,     // Delay before continuing the queue - buff_size is number of milliseconds
   SPIDMA_RESET,     // Assert the RESET signal (active low)
   SPIDMA_UNRESET,   // De-assert the RESET signal
   SPIDMA_SELECT,    // Assert the chip select signal (active low)
