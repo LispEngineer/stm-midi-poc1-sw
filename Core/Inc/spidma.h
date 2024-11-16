@@ -133,6 +133,8 @@ uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *,
 
 // This needs to be called regularly to keep the SPI queue emptied.
 uint32_t spidma_check_activity(spidma_config_t *spi);
+// This busy waits until the queue is totally empty.
+uint32_t spidma_empty_queue(spidma_config_t *spi);
 
 // SPI memory free queue functions
 uint32_t spidma_free_queue(spidma_config_t *spi, void *buff);

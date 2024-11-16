@@ -183,8 +183,7 @@ void spidma_ili9341_init(spidma_config_t *spi) {
 
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 4800);
 
-  // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  spidma_empty_queue(spi);
 }
 
 
@@ -235,8 +234,7 @@ void spidma_ili9341_set_address_window(spidma_config_t *spi, uint16_t x0, uint16
   // (Hence, this must be the original malloc'd buffer!)
   spidma_queue_repeats(spi, SPIDMA_COMMAND, 1, buff, 10040, 0, 1);
 
-  // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  spidma_empty_queue(spi);
 }
 
 // The size of this buffer must be:
@@ -306,8 +304,7 @@ void spidma_ili9341_fill_rectangle(spidma_config_t *spi, uint16_t x, uint16_t y,
 
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 20030);
 
-  // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  spidma_empty_queue(spi);
 }
 
 /*
@@ -379,8 +376,7 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
   spidma_ili9341_set_address_window(spi, x, y, x + font.width - 1, y + font.height - 1);
   spidma_queue_repeats(spi, SPIDMA_DATA, buff_size, (uint8_t *)buff, 30000, 0, 1); // Don't repeat & auto-free
 
-  // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  spidma_empty_queue(spi);
 }
 
 /*
@@ -425,8 +421,7 @@ uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t 
 
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 40010);
 
-  // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  spidma_empty_queue(spi);
 
   // Return the next character position - which may be off the screen
   return (y << 16) | x;
@@ -482,8 +477,7 @@ void spidma_ili9341_draw_image(spidma_config_t *spi, uint16_t x, uint16_t y,
 
   spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 50020);
 
-  // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  spidma_empty_queue(spi);
 }
 
 
@@ -496,11 +490,10 @@ static uint8_t ili9341_invert_off = 0x20; // INVOFF
  * NOTE: Hacky DMA synchronous version
  */
 void spidma_ili9341_invert(spidma_config_t *spi, bool invert) {
-  spidma_queue(spi, SPIDMA_SELECT, 0, 0, 60000);
+  // spidma_queue(spi, SPIDMA_SELECT, 0, 0, 60000);
   spidma_queue(spi, SPIDMA_COMMAND, 1, invert ? &ili9341_invert_on : &ili9341_invert_off, 60010);
-  spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 60020);
+  // spidma_queue(spi, SPIDMA_DESELECT, 0, 0, 60020);
 
   // Run the queue until it's empty
-  while (spidma_check_activity(spi) != 0); // 0 = nothing to do
+  spidma_empty_queue(spi);
 }
-
