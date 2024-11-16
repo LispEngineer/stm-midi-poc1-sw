@@ -28,7 +28,7 @@ typedef enum spidma_entry_type {
 
 /*
  * This structure holds a single entry for things
- * that should be sent over the SPI bus.
+ * that should be sent over the SPI bus in a queue.
  */
 typedef struct spidma_entry {
   uint8_t  type;
@@ -44,6 +44,14 @@ typedef struct spidma_entry {
 } spidma_entry_t;
 
 /*
+ * This contains everything we need to manage an SPI
+ * connected display with additional GPIO pins for
+ * chip select, command/data, and reset.
+ * CS and RESET are active low.
+ *
+ * All transfers are done via a queue, which needs to
+ * be serviced periodically.
+ *
  * NOTE: This structure should be allocated in the fast
  * data RAM of the microcontroller because it will be
  * accessed several times during an SPI transfer complete
@@ -96,27 +104,32 @@ typedef struct spidma_config {
 
 void spidma_init(spidma_config_t *);
 
-// Low level functions
+// Functions to handle the CS and RESET pins
 void spidma_select(spidma_config_t *);
 void spidma_deselect(spidma_config_t *);
 void spidma_reset(spidma_config_t *);
 void spidma_dereset(spidma_config_t *);
 
+// Functions to actually send data over the SPI; the data/command
+// GPIO is set by two of these and ignored by the third.
 uint32_t spidma_write(spidma_config_t *, uint8_t *buff, size_t buff_size);
 uint32_t spidma_write_command(spidma_config_t *, uint8_t *buff, size_t buff_size);
 uint32_t spidma_write_data(spidma_config_t *, uint8_t *buff, size_t buff_size);
 
+// Helper that just spins until there is no DMA running
+// (the busy flag is reset by interrupt, so don't disable interrupts).
 void spidma_wait_for_completion(spidma_config_t *);
 
 // SPI transmit queue functions
 uint32_t spidma_queue(spidma_config_t *, uint8_t, uint16_t, uint8_t *, uint32_t); // 0 repeats, no freeing
 uint32_t spidma_queue_repeats(spidma_config_t *, uint8_t, uint16_t, uint8_t *,
                                 uint32_t, uint8_t repeats, uint8_t should_free);
+
+// This needs to be called regularly to keep the SPI queue emptied.
 uint32_t spidma_check_activity(spidma_config_t *spi);
 
 // SPI memory free queue functions
 uint32_t spidma_free_queue(spidma_config_t *spi, void *buff);
 void *spidma_free_dequeue(spidma_config_t *spi);
-
 
 #endif /* INC_SPIDMA_H_ */
