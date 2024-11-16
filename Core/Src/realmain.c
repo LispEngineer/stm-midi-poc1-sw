@@ -32,12 +32,12 @@
 #define FAST_BSS
 #define FAST_DATA
 
-#define SOFTWARE_VERSION "11"
+#define SOFTWARE_VERSION "11.1"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
-#define MAIN_MENU   "\t156. Toggle R/G/B LED\r\n" \
-                     "\t2/3. Read BTN1/2\r\n" \
-                     "\t4.   Counters\r\n" \
+#define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
+                     "\t4/5. Read BTN1/2\r\n" \
+                     "\t6.   Counters\r\n" \
                      "\t7.   SPI info\r\n" \
                      "\tqw.  Pause/start I2S\r\n" \
                      "\ter.  Start/stop tone\r\n" \
@@ -293,29 +293,29 @@ uint8_t process_user_input(uint8_t opt) {
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
     break;
   case '2':
+    HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
+    break;
+  case '3':
+    HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
+    break;
+  case '4':
     l = snprintf(msg, sizeof(msg) - 1, "\r\nBTN1 status: %s",
                   // Button pressed pulls it down to 0
                   HAL_GPIO_ReadPin(BTN1_GPIO_Port, BTN1_Pin) == GPIO_PIN_RESET ? "PRESSED" : "RELEASED");
     serial_transmit((uint8_t*)msg, l);
     break;
-  case '3':
+  case '5':
     l = snprintf(msg, sizeof(msg) - 1, "\r\nBTN2 status: %s",
                   // Button pressed pulls it down to 0
                   HAL_GPIO_ReadPin(BTN2_GPIO_Port, BTN2_Pin) == GPIO_PIN_RESET ? "PRESSED" : "RELEASED");
     serial_transmit((uint8_t*)msg, l);
     break;
-  case '4':
+  case '6':
     l = snprintf(msg, sizeof(msg) - 1, "\r\nUA3I: %lu, ORE: %lu, MIDI_ORE: %lu, ",
                   usart3_interrupts, overrun_errors, midi_overrun_errors);
     serial_transmit((uint8_t*)msg, l);
     l = snprintf(msg, sizeof(msg) - 1, "LPT: %lu\r\n", loops_per_tick);
     serial_transmit((uint8_t*)msg, l);
-    break;
-  case '5':
-    HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
-    break;
-  case '6':
-    HAL_GPIO_TogglePin(LED_BLUE_GPIO_Port, LED_BLUE_Pin);
     break;
   case '7':
     print_spi_queue_info(spip);
