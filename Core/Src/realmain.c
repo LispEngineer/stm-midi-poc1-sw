@@ -77,7 +77,7 @@ extern SPI_HandleTypeDef DISPLAY_SPI;
 extern DMA_HandleTypeDef DISPLAY_DMA;
 
 static uint32_t overrun_errors = 0;
-// static uint32_t uart_error_callbacks = 0;
+static uint32_t uart_error_callbacks = 0;
 static uint32_t usart3_interrupts = 0;
 static uint32_t midi_overrun_errors = 0;
 static uint32_t loops_per_tick;
@@ -150,6 +150,8 @@ void check_uart(USART_TypeDef *usart, ring_buffer_t *in_rb, ring_buffer_t *out_r
   }
 
   // Check for serial input waiting to be read
+  // NO MORE: We're doing receives via interrupts
+  /*
   if (LL_USART_IsActiveFlag_RXNE(usart)) {
     c = LL_USART_ReceiveData8(usart);
     char msg[16];
@@ -157,6 +159,7 @@ void check_uart(USART_TypeDef *usart, ring_buffer_t *in_rb, ring_buffer_t *out_r
     serial_transmit((uint8_t *)msg, strlen(msg));
     ring_buffer_queue(in_rb, c);
   }
+  */
 }
 
 /** If there is input ready, pull it into our input buffers.
@@ -293,6 +296,58 @@ void clear_uart_flags() {
   LL_USART_ClearFlag_NE(MIDI1_UART);
   LL_USART_ClearFlag_ORE(MIDI1_UART);
   LL_USART_ClearFlag_IDLE(MIDI1_UART);
+}
+
+/*
+ * Handle interrupts from a USART. But it doesn't really tell us
+ * what generated the interrupt!
+ *
+ * NOTE: Put this in FAST RAM.
+ */
+void ll_usart_interrupt_handler(USART_TypeDef *u) {
+  uint16_t c = 256; // greater than an 8-bit character
+
+  if (LL_USART_IsActiveFlag_RXNE(u)) {
+    // Receive is not empty
+    c = LL_USART_ReceiveData8(u);
+
+  } else if (LL_USART_IsActiveFlag_ORE(u)) {
+    // Over run error
+    LL_USART_ClearFlag_ORE(u);
+    overrun_errors++;
+
+  } else if (LL_USART_IsActiveFlag_PE(u)) {
+    LL_USART_ClearFlag_PE(u);
+    // TODO: Increase parity errors
+
+  } else if (LL_USART_IsActiveFlag_FE(u)) {
+    // Framing error
+    LL_USART_ClearFlag_FE(u);
+    // TODO: Increase framing errors
+  }
+
+  if (c < 256) {
+    // Process the incoming character by adding it to our ring buffer
+    ring_buffer_t *rbqp;
+
+    // Determine which queue to put the character into
+    if (u == MIDI1_UART) {
+      rbqp = &m_i_rb;
+    } else if (u == CONSOLE_UART) {
+      rbqp = &s_i_rb;
+    } else {
+      // Ignore, we aren't using this UART
+      return;
+    }
+
+    ring_buffer_queue(rbqp, c);
+    // Debug output
+    /*
+    char msg[8];
+    snprintf(msg, sizeof(msg), "=%02X=", (int)c);
+    serial_transmit((uint8_t *)msg, strlen(msg));
+    */
+  }
 }
 
 /** Interprets numbers as menu options.
@@ -484,8 +539,10 @@ void check_midi_synth() {
   char msg[64];
 
   if (midi_in <= 255) {
+    /*
     snprintf(msg, sizeof(msg), "_%02X_", midi_in);
     serial_transmit((uint8_t *)msg, strlen(msg));
+    */
     if (midi_stream_receive(&midi_stream_0, midi_in, &mm)) {
       // Received a full MIDI message
 
@@ -633,6 +690,14 @@ void realmain() {
   init_midi_buffers();
   tonegen_init(&tonegen1, 32000);
   tonegen_set(&tonegen1, 1024, 0); // Frequency, Amplitude
+
+  // Start our USART receiving and error interrupts
+  LL_USART_EnableIT_RXNE(MIDI1_UART);
+  LL_USART_EnableIT_RXNE(CONSOLE_UART);
+  LL_USART_EnableIT_ERROR(MIDI1_UART);
+  LL_USART_EnableIT_ERROR(CONSOLE_UART);
+  // LL_USART_EnableIT_PE(MIDI1_UART);
+  // LL_USART_EnableIT_PE(CONSOLE_UART);
 
   display_init();
   show_intro(spip);
