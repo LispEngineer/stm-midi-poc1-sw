@@ -167,6 +167,19 @@ this functionality:
   * Clock Polarity Low
 
 
+# DMA UART Circular Receive Test
+
+## Goal
+
+Turn UART receive into free-running
+DMA circular buffer receive.
+Periodically check what the last byte written
+by the DMA was, and read the bytes since we
+last read until DMA's last written.
+
+Need to know: Can I get the current write pointer
+from the DMA system?
+
 # EVT1 Hardware Test Notes
 
 ## Serial console
