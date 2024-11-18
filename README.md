@@ -180,6 +180,21 @@ last read until DMA's last written.
 Need to know: Can I get the current write pointer
 from the DMA system?
 
+## Online notes
+
+[Reference](https://community.st.com/t5/stm32-mcus-embedded-software/how-to-transmit-usart-data-with-dma-and-low-level-ll-functions/m-p/310350/highlight/true#M21869)
+Steps to be considered (in order):
+*    Use configuration from CubeMX
+*    Configure DMA memory & peripheral addresses for UART and your buffer
+*    Configure DMA length (number of bytes to transmit in your case)
+*    Enable UART DMA TX request (not done in your example)
+*    Enable UART TX mode
+*    Enable UART itself
+*    Enable DMA channel
+*    Transmission will start
+
+* [Doc](https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx) that might help.
+
 # EVT1 Hardware Test Notes
 
 ## Serial console
