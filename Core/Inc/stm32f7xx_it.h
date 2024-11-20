@@ -63,8 +63,8 @@ void USART2_IRQHandler(void);
 void USART3_IRQHandler(void);
 void UART4_IRQHandler(void);
 void UART5_IRQHandler(void);
+void DMA2_Stream1_IRQHandler(void);
 void DMA2_Stream3_IRQHandler(void);
-void USART6_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 void ll_usart_interrupt_handler(USART_TypeDef *u);

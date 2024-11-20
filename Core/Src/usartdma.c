@@ -4,6 +4,12 @@
  * USART Receiving: Implements a DMA-based circular buffer receiver
  * with the ability to pull characters when available via a function.
  *
+ * USART needs to be configured as follows:
+ * 1. LL API
+ * 2. DMA RX
+ * 3. Circular receive
+ * 4. No FIFO
+ *
  *  Created on: 2024-11-17
  *  Updated on: 2024-11-20
  *      Author: Douglas P. Fields, Jr.
