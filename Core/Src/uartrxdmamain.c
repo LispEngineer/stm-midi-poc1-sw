@@ -5,7 +5,7 @@
  * UART receiving of data.
  *
  *  Created on: 2024-11-17
- *  Updated on: 2024-11-18
+ *  Updated on: 2024-11-21
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -22,14 +22,19 @@
 #ifdef USE_HAL_USART2
 #else
 #define CONSOLE_UART       USART2 // Low level USART - HAL would be huart2
-#define CONSOLE_DMA        DMA1
-#define CONSOLE_DMA_STREAM LL_DMA_STREAM_5
+#define CONSOLE_DMA_RX        DMA1
+#define CONSOLE_DMA_RX_STREAM LL_DMA_STREAM_5
+#define CONSOLE_DMA_TX        DMA1
+#define CONSOLE_DMA_TX_STREAM LL_DMA_STREAM_6
 #endif // USE_HAL_USART2
 // This is connected to DMA 1 Stream 5
 
 
 #define BUF_SZ_USART_RX ((size_t)32)
 uint8_t console_rx_buf[BUF_SZ_USART_RX];
+#define BUF_SZ_USART_TX ((size_t)200)
+uint8_t console_tx_buf1[BUF_SZ_USART_RX];
+uint8_t console_tx_buf2[BUF_SZ_USART_RX];
 
 void serial_transmit2(char *buf, uint16_t len) {
   for (size_t i = 0; i < len; i++) {
@@ -40,18 +45,24 @@ void serial_transmit2(char *buf, uint16_t len) {
 
 void uartrxdmamain() {
 
-  usart_dma_circular_receive_t console_rx;
+  usart_dma_config_t console;
   bool x = false;
   uint16_t rxc_or_not; // received character or not
   char rxc;
 
-  console_rx.usartx = CONSOLE_UART;
-  console_rx.dmax = CONSOLE_DMA;
-  console_rx.dma_stream = CONSOLE_DMA_STREAM;
-  console_rx.rx_buf = console_rx_buf;
-  console_rx.rx_buf_sz = sizeof(console_rx_buf);
+  console.usartx = CONSOLE_UART;
+  console.dma_rx = CONSOLE_DMA_RX;
+  console.dma_rx_stream = CONSOLE_DMA_RX_STREAM;
+  console.dma_tx = CONSOLE_DMA_TX;
+  console.dma_tx_stream = CONSOLE_DMA_TX_STREAM;
 
-  udcr_init(&console_rx);
+  console.rx_buf = console_rx_buf;
+  console.rx_buf_sz = sizeof(console_rx_buf);
+  console.tx_buf1 = console_tx_buf1;
+  console.tx_buf2 = console_tx_buf2;
+  console.tx_buf_sz = sizeof(console_tx_buf1);
+
+  udcr_init(&console);
 
   while (1) {
     x = !x;
@@ -60,7 +71,7 @@ void uartrxdmamain() {
     serial_transmit2("\r\n", 2);
     serial_transmit2(x ? "-" : "=", 1);
 
-    while ((rxc_or_not = udcr_read_byte(&console_rx)) < 0x100) {
+    while ((rxc_or_not = udcr_read_byte(&console)) < 0x100) {
       rxc = rxc_or_not & 0xFF;
       serial_transmit2(&rxc, 1);
     }
@@ -75,18 +86,18 @@ void uartrxdmamain2() {
   uint32_t datalength;
   char buf[64];
 
-  LL_DMA_ConfigAddresses(CONSOLE_DMA, CONSOLE_DMA_STREAM,
+  LL_DMA_ConfigAddresses(CONSOLE_DMA_RX, CONSOLE_DMA_RX_STREAM,
       (uint32_t)LL_USART_DMA_GetRegAddr(CONSOLE_UART, LL_USART_DMA_REG_DATA_RECEIVE),
       (uint32_t)console_rx_buf,
       LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
   /*
-  LL_DMA_SetMemoryAddress(CONSOLE_DMA, CONSOLE_DMA_STREAM, (uint32_t)console_rx_buf);
-  LL_DMA_SetMemorySize(CONSOLE_DMA, CONSOLE_DMA_STREAM, BUF_SZ_USART_RX);
+  LL_DMA_SetMemoryAddress(CONSOLE_DMA_RX, CONSOLE_DMA_RX_STREAM, (uint32_t)console_rx_buf);
+  LL_DMA_SetMemorySize(CONSOLE_DMA_RX, CONSOLE_DMA_RX_STREAM, BUF_SZ_USART_RX);
   */
-  LL_DMA_SetDataLength(CONSOLE_DMA, CONSOLE_DMA_STREAM, sizeof(console_rx_buf));
+  LL_DMA_SetDataLength(CONSOLE_DMA_RX, CONSOLE_DMA_RX_STREAM, sizeof(console_rx_buf));
   LL_USART_EnableDMAReq_RX(CONSOLE_UART);
   // LL_USART_EnableDirectionRx(CONSOLE_UART);
-  LL_DMA_EnableStream(CONSOLE_DMA, CONSOLE_DMA_STREAM);
+  LL_DMA_EnableStream(CONSOLE_DMA_RX, CONSOLE_DMA_RX_STREAM);
 
   /*
   LL_DMA_GetCurrentTargetMem(DMAx, Stream);
@@ -96,7 +107,7 @@ void uartrxdmamain2() {
   while (1) {
     x = !x;
 
-    datalength = LL_DMA_GetDataLength(CONSOLE_DMA, CONSOLE_DMA_STREAM);
+    datalength = LL_DMA_GetDataLength(CONSOLE_DMA_RX, CONSOLE_DMA_RX_STREAM);
 
     /*
      * datalength - upon initialization, this starts at 32 (BUF_SZ_UART_RX)

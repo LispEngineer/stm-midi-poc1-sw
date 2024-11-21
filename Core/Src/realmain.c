@@ -82,7 +82,7 @@ const uint8_t NOTE_ON[] = NOTE_ON_START;
 const uint8_t NOTE_OFF[] = NOTE_OFF_START;
 
 static uint32_t overrun_errors = 0;
-static uint32_t uart_error_callbacks = 0;
+// static uint32_t uart_error_callbacks = 0;
 static uint32_t usart3_interrupts = 0;
 static uint32_t midi_overrun_errors = 0;
 static uint32_t loops_per_tick;
@@ -97,7 +97,7 @@ FAST_BSS char m_o_buff[32];
 FAST_BSS ring_buffer_t m_o_rb;
 
 FAST_BSS uint8_t m_i_buff[32];
-usart_dma_circular_receive_t m_i_rx; // MIDI Input Receive
+usart_dma_config_t m_i_rx; // MIDI Input Receive
 
 // MIDI input parsers
 FAST_BSS midi_stream midi_stream_0;
@@ -131,11 +131,14 @@ void init_ring_buffers() {
 
 void init_usart_dma_receivers() {
   m_i_rx.usartx = MIDI1_UART;
-  m_i_rx.dmax = MIDI1_DMA;
-  m_i_rx.dma_stream = MIDI1_DMA_STREAM;
+  m_i_rx.dma_rx = MIDI1_DMA;
+  m_i_rx.dma_rx_stream = MIDI1_DMA_STREAM;
   m_i_rx.rx_buf = m_i_buff;
   m_i_rx.rx_buf_sz = sizeof(m_i_buff);
 
+  // FIXME: Do the TX stuff
+
+  // TODO: Check return value
   udcr_init(&m_i_rx);
 }
 
