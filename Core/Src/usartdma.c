@@ -151,11 +151,28 @@ udcr_return_value_t udcr_init(usart_dma_config_t *udcr) {
       (uint32_t)udcr->rx_buf,
       LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
   LL_DMA_SetDataLength(udcr->dma_rx, udcr->dma_rx_stream, udcr->rx_buf_sz);
-  LL_USART_EnableDMAReq_RX(udcr->usartx);
   LL_DMA_EnableStream(udcr->dma_rx, udcr->dma_rx_stream);
+  LL_USART_EnableDMAReq_RX(udcr->usartx);
 
   // Initialize DMA receiving
+  // If we enable TC interrupts, we need to clear the flag upon an interrupt.
+  /*
   LL_DMA_EnableIT_TC(udcr->dma_rx, udcr->dma_rx_stream);
+  */
+  // This would need to be added in DMA1_Stream5_IRQHandler(void) for USART2_RX
+  // We seem to be unable to receive more than a full buffer worth,
+  // even with circular buffers turned on,
+  // if TC interrupts are enabled, unless we clear these interrupts.
+  /*
+  if (LL_DMA_IsActiveFlag_TC5(DMA1)) {
+    LL_DMA_ClearFlag_TC5(DMA1);
+  }
+  */
+  LL_DMA_DisableStream(udcr->dma_tx, udcr->dma_tx_stream);
+  LL_DMA_ConfigAddresses(udcr->dma_tx, udcr->dma_tx_stream,
+      (uint32_t)udcr->tx_buf1,
+      (uint32_t)LL_USART_DMA_GetRegAddr(udcr->usartx, LL_USART_DMA_REG_DATA_TRANSMIT),
+      LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
 
   return UDCR_OK;
 }
@@ -188,12 +205,18 @@ udcr_return_value_t udcr_send_from_queue(usart_dma_config_t *udcr) {
 
 	// Begin sending our current sending buffer
 	LL_DMA_DisableStream(udcr->dma_tx, udcr->dma_tx_stream);
+  LL_DMA_EnableIT_TC(udcr->dma_tx, udcr->dma_tx_stream);
+  LL_DMA_EnableIT_TE(udcr->dma_tx, udcr->dma_tx_stream);
 	// Crazy that the memory address type is a uint32_t than a pointer
-	LL_DMA_SetMemoryAddress(udcr->dma_tx, udcr->dma_tx_stream, (uint32_t)udcr->tx_send_buf);
+  LL_DMA_ConfigAddresses(udcr->dma_tx, udcr->dma_tx_stream,
+      (uint32_t)udcr->tx_send_buf,
+      (uint32_t)LL_USART_DMA_GetRegAddr(udcr->usartx, LL_USART_DMA_REG_DATA_TRANSMIT),
+      LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+	// LL_DMA_SetMemoryAddress(udcr->dma_tx, udcr->dma_tx_stream, (uint32_t)udcr->tx_send_buf);
 	LL_DMA_SetDataLength(udcr->dma_tx, udcr->dma_tx_stream, send_sz);
 	LL_DMA_EnableStream(udcr->dma_tx, udcr->dma_tx_stream);
+  LL_USART_EnableDMAReq_TX(udcr->usartx);
   LL_USART_EnableDirectionTx(udcr->usartx);
-	LL_USART_EnableDMAReq_TX(udcr->usartx);
 
 	return UDCR_OK;
 }

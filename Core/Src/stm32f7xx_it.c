@@ -250,10 +250,14 @@ void DMA1_Stream5_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
   // USART2_RX
-  // We seem to be unable to receive more than a full buffer worth?
+  // We seem to be unable to receive more than a full buffer worth,
+  // even with circular buffers turned on,
+  // if TC interrupts are enabled, unless we clear these interrupts.
+  /*
   if (LL_DMA_IsActiveFlag_TC5(DMA1)) {
     LL_DMA_ClearFlag_TC5(DMA1);
   }
+  */
   /* USER CODE END DMA1_Stream5_IRQn 0 */
 
   /* USER CODE BEGIN DMA1_Stream5_IRQn 1 */
@@ -268,6 +272,12 @@ void DMA1_Stream6_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
   // Per configuration (.ioc file), this is USART 2, our serial console.
+  if (LL_DMA_IsActiveFlag_TC6(DMA1)) {
+    LL_DMA_ClearFlag_TC6(DMA1);
+  }
+  if (LL_DMA_IsActiveFlag_TE6(DMA1)) {
+    LL_DMA_ClearFlag_TE6(DMA1);
+  }
   usart_dma_transfer_complete(USART2);
   /* USER CODE END DMA1_Stream6_IRQn 0 */
 
