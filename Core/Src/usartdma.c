@@ -169,6 +169,8 @@ udcr_return_value_t udcr_init(usart_dma_config_t *udcr) {
   }
   */
   LL_DMA_DisableStream(udcr->dma_tx, udcr->dma_tx_stream);
+  LL_DMA_EnableIT_TC(udcr->dma_tx, udcr->dma_tx_stream); // Transmit complete interrupt
+  // LL_DMA_EnableIT_TE(udcr->dma_tx, udcr->dma_tx_stream); // Transmit error interrupt
   LL_DMA_ConfigAddresses(udcr->dma_tx, udcr->dma_tx_stream,
       (uint32_t)udcr->tx_buf1,
       (uint32_t)LL_USART_DMA_GetRegAddr(udcr->usartx, LL_USART_DMA_REG_DATA_TRANSMIT),
@@ -192,6 +194,8 @@ udcr_return_value_t udcr_send_from_queue(usart_dma_config_t *udcr) {
 		return UDCR_IGNORED;
 	}
 
+	udcr->is_sending = 1;
+
 	// Start sending our buffers
 	size_t send_sz = udcr->tx_buf_sz - udcr->tx_q_sz_remain;
 	uint8_t *temp;
@@ -205,14 +209,8 @@ udcr_return_value_t udcr_send_from_queue(usart_dma_config_t *udcr) {
 
 	// Begin sending our current sending buffer
 	LL_DMA_DisableStream(udcr->dma_tx, udcr->dma_tx_stream);
-  LL_DMA_EnableIT_TC(udcr->dma_tx, udcr->dma_tx_stream);
-  LL_DMA_EnableIT_TE(udcr->dma_tx, udcr->dma_tx_stream);
 	// Crazy that the memory address type is a uint32_t than a pointer
-  LL_DMA_ConfigAddresses(udcr->dma_tx, udcr->dma_tx_stream,
-      (uint32_t)udcr->tx_send_buf,
-      (uint32_t)LL_USART_DMA_GetRegAddr(udcr->usartx, LL_USART_DMA_REG_DATA_TRANSMIT),
-      LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
-	// LL_DMA_SetMemoryAddress(udcr->dma_tx, udcr->dma_tx_stream, (uint32_t)udcr->tx_send_buf);
+	LL_DMA_SetMemoryAddress(udcr->dma_tx, udcr->dma_tx_stream, (uint32_t)udcr->tx_send_buf);
 	LL_DMA_SetDataLength(udcr->dma_tx, udcr->dma_tx_stream, send_sz);
 	LL_DMA_EnableStream(udcr->dma_tx, udcr->dma_tx_stream);
   LL_USART_EnableDMAReq_TX(udcr->usartx);
