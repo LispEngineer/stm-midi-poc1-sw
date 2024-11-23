@@ -4,10 +4,15 @@
  * USART Receiving: Implements a DMA-based circular buffer receiver
  * with the ability to pull characters when available via a function.
  *
+ * USART Transmitting: Implements a dual-buffer DMA send.
+ * One buffer is actually sending, and the other buffer is
+ * queuing things for send. Periodically check if the DMA is
+ * not sending, and if so, swap buffers and initiate a send.
+ *
  * USART needs to be configured as follows:
  * 1. LL API
- * 2. DMA RX
- * 3. Circular receive
+ * 2. DMA RX & TX
+ * 3. Circular receive, Normal Transmit
  * 4. No FIFO
  *
  * Since we're using the LL drivers, we have to manually set the
@@ -46,7 +51,7 @@ static udcr_callback_map_entry_t callback_map[NUM_USART_CHANNELS] = { 0 };
  * Callback function when an DMA transfer has completed,
  * mediated by the STM32 LL. This is an interrupt handler.
  *
- * We gratituously blink an LED for now just to show it working.
+ * We gratuitously blink an LED for now just to show it working.
  * FIXME: Remove LED blinking.
  */
 // TODO: Make this live in fast code RAM
@@ -79,8 +84,6 @@ void usart_dma_transfer_complete(USART_TypeDef *usartx) {
 
   udcr->is_sending = 0;
 }
-
-
 
 /** Using LL, configures a U(S)ART and DMA for (circular) buffer
  * receive, and starts that receiving.
@@ -152,6 +155,8 @@ udcr_return_value_t udcr_init(usart_dma_config_t *udcr) {
   LL_DMA_EnableStream(udcr->dma_rx, udcr->dma_rx_stream);
 
   // Initialize DMA receiving
+  LL_DMA_EnableIT_TC(udcr->dma_rx, udcr->dma_rx_stream);
+
   return UDCR_OK;
 }
 
@@ -187,6 +192,8 @@ udcr_return_value_t udcr_send_from_queue(usart_dma_config_t *udcr) {
 	LL_DMA_SetMemoryAddress(udcr->dma_tx, udcr->dma_tx_stream, (uint32_t)udcr->tx_send_buf);
 	LL_DMA_SetDataLength(udcr->dma_tx, udcr->dma_tx_stream, send_sz);
 	LL_DMA_EnableStream(udcr->dma_tx, udcr->dma_tx_stream);
+  LL_USART_EnableDirectionTx(udcr->usartx);
+	LL_USART_EnableDMAReq_TX(udcr->usartx);
 
 	return UDCR_OK;
 }

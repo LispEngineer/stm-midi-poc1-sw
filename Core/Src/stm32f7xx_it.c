@@ -249,7 +249,11 @@ void DMA1_Stream4_IRQHandler(void)
 void DMA1_Stream5_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA1_Stream5_IRQn 0 */
-
+  // USART2_RX
+  // We seem to be unable to receive more than a full buffer worth?
+  if (LL_DMA_IsActiveFlag_TC5(DMA1)) {
+    LL_DMA_ClearFlag_TC5(DMA1);
+  }
   /* USER CODE END DMA1_Stream5_IRQn 0 */
 
   /* USER CODE BEGIN DMA1_Stream5_IRQn 1 */

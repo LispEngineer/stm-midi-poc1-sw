@@ -104,7 +104,7 @@ FAST_BSS uint8_t m1_i_buff[32];
 usart_dma_config_t midi1_io; // MIDI Input Receive
 
 // Console I/O
-FAST_BSS uint8_t c_i_buff[32];
+FAST_BSS uint8_t c_i_buff[4];
 FAST_BSS uint8_t c_o_buff1[256];
 FAST_BSS uint8_t c_o_buff2[sizeof(c_o_buff1)];
 usart_dma_config_t console_io;
