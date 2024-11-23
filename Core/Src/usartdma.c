@@ -51,8 +51,7 @@ static udcr_callback_map_entry_t callback_map[NUM_USART_CHANNELS] = { 0 };
  * Callback function when an DMA transfer has completed,
  * mediated by the STM32 LL. This is an interrupt handler.
  *
- * We gratuitously blink an LED for now just to show it working.
- * FIXME: Remove LED blinking.
+ * We can gratuitously blink an LED for now just to show it working.
  */
 // TODO: Make this live in fast code RAM
 void usart_dma_transfer_complete(USART_TypeDef *usartx) {
