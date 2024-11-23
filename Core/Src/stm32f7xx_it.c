@@ -274,11 +274,11 @@ void DMA1_Stream6_IRQHandler(void)
   // Per configuration (.ioc file), this is USART 2 TX, our serial console.
   if (LL_DMA_IsActiveFlag_TC6(DMA1)) {
     LL_DMA_ClearFlag_TC6(DMA1);
+    usart_dma_transfer_complete(USART2);
   }
   if (LL_DMA_IsActiveFlag_TE6(DMA1)) {
     LL_DMA_ClearFlag_TE6(DMA1);
   }
-  usart_dma_transfer_complete(USART2);
   /* USER CODE END DMA1_Stream6_IRQn 0 */
 
   /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
@@ -377,11 +377,11 @@ void DMA2_Stream6_IRQHandler(void)
   // Per configuration (.ioc file), this is USART 6 TX
   if (LL_DMA_IsActiveFlag_TC6(DMA2)) {
     LL_DMA_ClearFlag_TC6(DMA2);
+    usart_dma_transfer_complete(USART6);
   }
   if (LL_DMA_IsActiveFlag_TE6(DMA2)) {
     LL_DMA_ClearFlag_TE6(DMA2);
   }
-  usart_dma_transfer_complete(USART6);
   /* USER CODE END DMA2_Stream6_IRQn 0 */
 
   /* USER CODE BEGIN DMA2_Stream6_IRQn 1 */
@@ -398,11 +398,11 @@ void DMA2_Stream7_IRQHandler(void)
   // Per configuration (.ioc file), this is USART 1 TX
   if (LL_DMA_IsActiveFlag_TC7(DMA2)) {
     LL_DMA_ClearFlag_TC7(DMA2);
+    usart_dma_transfer_complete(USART1);
   }
   if (LL_DMA_IsActiveFlag_TE7(DMA2)) {
     LL_DMA_ClearFlag_TE7(DMA2);
   }
-  usart_dma_transfer_complete(USART1);
   /* USER CODE END DMA2_Stream7_IRQn 0 */
 
   /* USER CODE BEGIN DMA2_Stream7_IRQn 1 */
