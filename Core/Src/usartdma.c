@@ -121,10 +121,10 @@ udcr_return_value_t udcr_init(usart_dma_config_t *udcr) {
     return UDCR_FULL;
   }
 
-  // And register the callback
-  // XXX: START CODING HERE
-  // TODO: Check return value
-
+  // Register the send complete interrupt callback next.
+  // The LL system does not have a mechanism for this.
+  // You have to hard-code the callback.
+  // See: DMA1_Stream6_IRQHandler() in stm32f7xx_it.c
   udcr->is_sending = 0;
 
 
@@ -142,7 +142,7 @@ udcr_return_value_t udcr_init(usart_dma_config_t *udcr) {
   udcr->tx_send_sz = 0;
   udcr->is_sending = 0;
 
-  // Initialze and start the DMA circular buffer receiving
+  // Initialize and start the DMA circular buffer receiving
   LL_DMA_ConfigAddresses(udcr->dma_rx, udcr->dma_rx_stream,
       (uint32_t)LL_USART_DMA_GetRegAddr(udcr->usartx, LL_USART_DMA_REG_DATA_RECEIVE),
       (uint32_t)udcr->rx_buf,
@@ -153,6 +153,63 @@ udcr_return_value_t udcr_init(usart_dma_config_t *udcr) {
 
   // Initialize DMA receiving
   return UDCR_OK;
+}
+
+/** Call this regularly to send the queued bytes.
+ * Return values:
+ * UDCR_OK - send started
+ * UDCR_IGNORED - nothing to send
+ * UDCR_IN_USE - sending already going on
+ */
+udcr_return_value_t udcr_send_from_queue(usart_dma_config_t *udcr) {
+	if (udcr->is_sending) {
+		return UDCR_IN_USE;
+	}
+	if (udcr->tx_q_sz_remain == udcr->tx_buf_sz) {
+		// We have nothing to send
+		return UDCR_IGNORED;
+	}
+
+	// Start sending our buffers
+	size_t send_sz = udcr->tx_buf_sz - udcr->tx_q_sz_remain;
+	uint8_t *temp;
+
+	// Swap our sending and queueing buffers
+	temp = udcr->tx_send_buf;
+	udcr->tx_send_buf = udcr->tx_q_buf;
+	udcr->tx_q_buf = temp;
+	udcr->tx_q_next = temp;
+	udcr->tx_q_sz_remain = udcr->tx_buf_sz;
+
+	// Begin sending our current sending buffer
+	LL_DMA_DisableStream(udcr->dma_tx, udcr->dma_tx_stream);
+	// Crazy that the memory address type is a uint32_t than a pointer
+	LL_DMA_SetMemoryAddress(udcr->dma_tx, udcr->dma_tx_stream, (uint32_t)udcr->tx_send_buf);
+	LL_DMA_SetDataLength(udcr->dma_tx, udcr->dma_tx_stream, send_sz);
+	LL_DMA_EnableStream(udcr->dma_tx, udcr->dma_tx_stream);
+
+	return UDCR_OK;
+}
+
+/*
+ * Returns the # of bytes actually queued.
+ */
+size_t udcr_queue_bytes(usart_dma_config_t *udcr, const uint8_t *buf, size_t buf_sz) {
+	size_t to_enqueue = buf_sz < udcr->tx_q_sz_remain ? buf_sz : udcr->tx_q_sz_remain;
+
+	if (to_enqueue == 0) {
+		return 0;
+	}
+
+	// Copy the data to send
+	// destination, source, size
+	memcpy(udcr->tx_q_next, buf, to_enqueue);
+
+	// Increment our next send pointer & reduce our send size remaining
+	udcr->tx_q_next += to_enqueue;
+	udcr->tx_q_sz_remain -= to_enqueue;
+
+	return to_enqueue;
 }
 
 /** Returns a byte from the DMA RX circular buffer, if any.

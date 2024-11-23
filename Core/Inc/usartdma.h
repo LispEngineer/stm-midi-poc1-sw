@@ -70,6 +70,11 @@ typedef struct usart_dma_config {
 udcr_return_value_t udcr_init(usart_dma_config_t *udcr);
 uint16_t udcr_read_byte(usart_dma_config_t *udcr);
 
+// Transmit functions
+udcr_return_value_t udcr_send_from_queue(usart_dma_config_t *udcr);
+size_t udcr_queue_bytes(usart_dma_config_t *udcr, const uint8_t *buf, size_t buf_sz);
+
+
 // DMA TX interrupt callback function
 void usart_dma_transfer_complete(USART_TypeDef *usartx);
 

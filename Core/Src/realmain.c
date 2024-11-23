@@ -5,7 +5,7 @@
  * auto-generated.
  *
  *  Created on: 2024-08-25
- *  Updated on: 2024-11-07
+ *  Updated on: 2024-11-23
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -36,7 +36,7 @@
 #  define FAST_DATA
 #endif
 
-#define SOFTWARE_VERSION "14"
+#define SOFTWARE_VERSION "15"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
@@ -57,16 +57,25 @@
 #define NOTE_OFF_START "\x80\x3C\x40"
 #define NOTE_OFF_START_LEN 3
 
+// This is using LL API
+#define MIDI1_UART          USART1 // Low level USART - HAL would be huart6 // huart6 works with ubld.it & my TLP2362/ISOM8710 circuits
+#define MIDI1_DMA_RX        DMA2
+#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_1
+#define MIDI1_DMA_TX        DMA2
+#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_6
+
+// This is using LL API
+#define CONSOLE_UART          USART2 // Low level USART - HAL would be huart2
+#define CONSOLE_DMA_RX        DMA1
+#define CONSOLE_DMA_TX        DMA1
+#define CONSOLE_DMA_RX_STREAM LL_DMA_STREAM_5
+#define CONSOLE_DMA_TX_STREAM LL_DMA_STREAM_6
+
+// This is using HAL API
 #define I2S_BUFFER_SIZE 256
-
-#define MIDI1_UART        USART6 // Low level USART - HAL would be huart6 // huart6 works with ubld.it & my TLP2362/ISOM8710 circuits
-#define MIDI1_DMA         DMA2
-#define MIDI1_DMA_STREAM  LL_DMA_STREAM_1
-
-#define CONSOLE_UART USART2 // Low level USART - HAL would be huart2
-
 #define SOUND1       hi2s1
 
+// This is using HAL API
 #define DISPLAY_SPI  hspi2
 #define DISPLAY_DMA  hdma_spi2_tx
 
@@ -88,16 +97,17 @@ static uint32_t midi_overrun_errors = 0;
 static uint32_t loops_per_tick;
 static uint32_t midi_received = 0; // For receive interrupts
 
-// I/O buffers: Serial and MIDI, in & out
-FAST_BSS char s_i_buff[16];
-FAST_BSS ring_buffer_t s_i_rb;
-FAST_BSS char s_o_buff[256];
-FAST_BSS ring_buffer_t s_o_rb;
-FAST_BSS char m_o_buff[32];
-FAST_BSS ring_buffer_t m_o_rb;
+// MIDI1 I/O buffers
+FAST_BSS uint8_t m1_o_buff1[32];
+FAST_BSS uint8_t m1_o_buff2[sizeof(m1_o_buff1)];
+FAST_BSS uint8_t m1_i_buff[32];
+usart_dma_config_t midi1_io; // MIDI Input Receive
 
-FAST_BSS uint8_t m_i_buff[32];
-usart_dma_config_t m_i_rx; // MIDI Input Receive
+// Console I/O
+FAST_BSS uint8_t c_i_buff[32];
+FAST_BSS uint8_t c_o_buff1[256];
+FAST_BSS uint8_t c_o_buff2[sizeof(c_o_buff1)];
+usart_dma_config_t console_io;
 
 // MIDI input parsers
 FAST_BSS midi_stream midi_stream_0;
@@ -122,24 +132,36 @@ FAST_DATA static volatile int16_t *i2s_buff_write;
 // Can we write the next half of the buffer now?
 FAST_DATA int i2s_write_available;
 
-/** Set up all our i/o buffers */
-void init_ring_buffers() {
-  ring_buffer_init(&s_i_rb, s_i_buff, sizeof(s_i_buff));
-  ring_buffer_init(&s_o_rb, s_o_buff, sizeof(s_o_buff));
-  ring_buffer_init(&m_o_rb, m_o_buff, sizeof(m_o_buff));
-}
-
-void init_usart_dma_receivers() {
-  m_i_rx.usartx = MIDI1_UART;
-  m_i_rx.dma_rx = MIDI1_DMA;
-  m_i_rx.dma_rx_stream = MIDI1_DMA_STREAM;
-  m_i_rx.rx_buf = m_i_buff;
-  m_i_rx.rx_buf_sz = sizeof(m_i_buff);
-
-  // FIXME: Do the TX stuff
+void init_usart_dma_io() {
+  // MIDI Port
+  midi1_io.usartx = MIDI1_UART;
+  midi1_io.dma_rx = MIDI1_DMA_RX;
+  midi1_io.dma_rx_stream = MIDI1_DMA_RX_STREAM;
+  midi1_io.dma_rx = MIDI1_DMA_TX;
+  midi1_io.dma_rx_stream = MIDI1_DMA_TX_STREAM;
+  midi1_io.rx_buf = m1_i_buff;
+  midi1_io.rx_buf_sz = sizeof(m1_i_buff);
+  midi1_io.tx_buf1 = m1_o_buff1;
+  midi1_io.tx_buf2 = m1_o_buff2;
+  midi1_io.tx_buf_sz = sizeof(m1_o_buff1);
 
   // TODO: Check return value
-  udcr_init(&m_i_rx);
+  udcr_init(&midi1_io);
+
+  // Console
+  console_io.usartx = CONSOLE_UART;
+  console_io.dma_rx = CONSOLE_DMA_RX;
+  console_io.dma_tx = CONSOLE_DMA_TX;
+  console_io.dma_rx_stream = CONSOLE_DMA_RX_STREAM;
+  console_io.dma_tx_stream = CONSOLE_DMA_TX_STREAM;
+  console_io.rx_buf = c_i_buff;
+  console_io.rx_buf_sz = sizeof(c_i_buff);
+  console_io.tx_buf1 = c_o_buff1;
+  console_io.tx_buf2 = c_o_buff2;
+  console_io.tx_buf_sz = sizeof(c_o_buff1);
+
+  // TODO: Check return value
+  udcr_init(&console_io);
 }
 
 /** initialize our MIDI parsers */
@@ -147,77 +169,39 @@ void init_midi_buffers() {
   midi_stream_init(&midi_stream_0);
 }
 
-/** Queues data to be sent over our serial output. */
-void serial_transmit(const uint8_t *msg, uint16_t size) {
-  // TODO: Check for send buffer overflow
-  ring_buffer_queue_arr(&s_o_rb, (const char *)msg, (ring_buffer_size_t)size);
-}
-
-/** Read any waiting input from this USART and stick it in the
- * input ring_buffer. Write any output to the USART if it is ready.
+/** Queues data to be sent over our serial output.
+ * Returns # of bytes queued to send.
  */
-void check_uart(USART_TypeDef *usart, ring_buffer_t *in_rb, ring_buffer_t *out_rb) {
-  char c;
-
-  // TODO: Rewrite this such that it uses
-  // DMA buffers to send serial.
-  // It uses two buffers: One to be sending via DMA,
-  // and a second one to collect stuff to be sent.
-  // When there is stuff to be sent AND the DMA is not
-  // sending, switch to collecting in the other buffer,
-  // and start sending whatever is in the current buffer.
-
-  // Check for serial output waiting to go
-  if (ring_buffer_num_items(out_rb) > 0) {
-    // Check if we can send the item now
-    if (LL_USART_IsActiveFlag_TXE(usart)) {
-      ring_buffer_dequeue(out_rb, &c);
-      LL_USART_TransmitData8(usart, c);
-    }
-  }
-
-  // Check for serial input waiting to be read
-  // NO MORE: We're doing receives via interrupts
-  /*
-  if (in_rb != NULL) {
-    if (LL_USART_IsActiveFlag_RXNE(usart)) {
-      c = LL_USART_ReceiveData8(usart);
-      char msg[16];
-      snprintf(msg, sizeof(msg), "=%02X=", (int)c);
-      serial_transmit((uint8_t *)msg, strlen(msg));
-      ring_buffer_queue(in_rb, c);
-    }
-  }
-  */
+static inline size_t serial_transmit(const uint8_t *msg, uint16_t size) {
+  // TODO: Check for send buffer overflow - if sent < size
+  size_t sent = udcr_queue_bytes(&console_io, msg, size);
+  return sent;
 }
 
-/** If there is input ready, pull it into our input buffers.
- * If there is output waiting, send it when possible.
- * If the input buffers are full, increase counters.
+/*
+ * Serial outputs are submitted for DMA send if possible.
+ * Serial inputs are handled by DMA and not here anymore.
  */
 void check_io() {
   // Serial port
-  check_uart(CONSOLE_UART /* .Instance */, &s_i_rb, &s_o_rb);
+  udcr_send_from_queue(&console_io);
+
   // MIDI port
-  check_uart(MIDI1_UART /* .Instance */, NULL, &m_o_rb);
+  udcr_send_from_queue(&midi1_io);
 }
 
-/** Queues data to be sent over our serial output. */
-void midi_transmit(const uint8_t *msg, uint16_t size) {
+/** Queues data to be sent over our MIDI output.
+ * Returns bytes queued. */
+static inline size_t midi_transmit(const uint8_t *msg, uint16_t size) {
   // TODO: Check for send buffer overflow
-  ring_buffer_queue_arr(&m_o_rb, (const char *)msg, (ring_buffer_size_t)size);
+  return udcr_queue_bytes(&midi1_io, msg, size);
 }
 
 /** Returns >= 256 if there is nothing to be read;
  * otherwise returns a uint8_t of what is next to be read.
  */
-uint16_t serial_read() {
-  uint8_t c;
-
-  if (!ring_buffer_dequeue(&s_i_rb, (char *)&c)) {
-    return 256;
-  }
-  return c;
+static inline uint16_t serial_read() {
+  return udcr_read_byte(&console_io);
 }
 
 void printWelcomeMessage(void) {
@@ -228,7 +212,6 @@ void printWelcomeMessage(void) {
   serial_transmit((uint8_t *)WELCOME_MSG, strlen(WELCOME_MSG));
   serial_transmit((uint8_t *)MAIN_MENU, strlen(MAIN_MENU));
 }
-
 
 static void print_spi_queue_info(spidma_config_t *spi) {
   char buf[200];
@@ -247,8 +230,6 @@ static void print_spi_queue_info(spidma_config_t *spi) {
               ili_mem_allocs, spi->mem_frees);
   serial_transmit((uint8_t *)buf, strlen(buf));
 }
-
-
 
 static int prompted = 0;
 
@@ -330,14 +311,19 @@ void clear_uart_flags() {
  * Handle interrupts from a USART. But it doesn't really tell us
  * what generated the interrupt!
  *
+ * This does nothing as USART interrupts should be off.
+ *
  * NOTE: Put this in FAST RAM.
  */
 void ll_usart_interrupt_handler(USART_TypeDef *u) {
-  uint16_t c = 256; // greater than an 8-bit character
+  // We don't do anything anymore, all I/O should be
+  // DMA driven now and all interrupts should be
+  // DMA driven as well.
 
   if (LL_USART_IsActiveFlag_RXNE(u)) {
-    // Receive is not empty
-    c = LL_USART_ReceiveData8(u);
+    // Receive is not empty - clear receive by receiving it
+	// We discard it now
+    LL_USART_ReceiveData8(u);
 
   } else if (LL_USART_IsActiveFlag_ORE(u)) {
     // Over run error
@@ -352,30 +338,6 @@ void ll_usart_interrupt_handler(USART_TypeDef *u) {
     // Framing error
     LL_USART_ClearFlag_FE(u);
     // TODO: Increase framing errors
-  }
-
-  if (c < 256) {
-    // Process the incoming character by adding it to our ring buffer
-    ring_buffer_t *rbqp;
-
-    // Determine which queue to put the character into
-    if (u == MIDI1_UART) {
-      // We got an rx interrupt
-      midi_received++;
-    } else if (u == CONSOLE_UART) {
-      rbqp = &s_i_rb;
-    } else {
-      // Ignore, we aren't using this UART
-      return;
-    }
-
-    ring_buffer_queue(rbqp, c);
-    // Debug output
-    /*
-    char msg[8];
-    snprintf(msg, sizeof(msg), "=%02X=", (int)c);
-    serial_transmit((uint8_t *)msg, strlen(msg));
-    */
   }
 }
 
@@ -481,7 +443,7 @@ uint8_t process_user_input(uint8_t opt) {
  * Returns 256+ when no byte received.
  */
 static inline uint16_t read_midi(void) {
-  return udcr_read_byte(&m_i_rx);
+  return udcr_read_byte(&midi1_io);
 }
 
 /**
@@ -707,8 +669,7 @@ void realmain() {
   uint32_t last_tick = HAL_GetTick();
   uint32_t tick_counter = 0;
 
-  init_ring_buffers();
-  init_usart_dma_receivers();
+  init_usart_dma_io();
   init_midi_buffers();
   tonegen_init(&tonegen1, 32000);
   tonegen_set(&tonegen1, 1024, 0); // Frequency, Amplitude
