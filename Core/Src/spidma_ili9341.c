@@ -414,6 +414,141 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
 }
 
 /*
+ * Writes one row of characters into newly allocated buffer
+ * (caller is responsible for freeing it).
+ */
+uint16_t *spidma_ili9341_render_chars(const char *str, const size_t len,
+                                         FontDef font, uint16_t color, uint16_t bgcolor) {
+
+  if (len <= 0 || str == NULL) {
+    return NULL;
+  }
+
+  // How large is our buffer? Let's create it
+  uint16_t num_pixels = font.width * font.height * len;
+  uint16_t *pixels = malloc(num_pixels * sizeof(uint16_t));
+
+  if (NULL == pixels) {
+    // Out of memory
+    ili_mem_alloc_failures++;
+    ili_last_alloc_failure_size = num_pixels * sizeof(uint16_t);
+    return NULL;
+  }
+
+  // We need to flip the bytes of the color we are setting
+  color = ((color & 0xFF) << 8) | (color >> 8);
+  bgcolor = ((bgcolor & 0xFF) << 8) | (bgcolor >> 8);
+
+
+  // Prepare to blast our character out in a single write.
+  // Each bit in the font turns into a 2-byte word that
+  // we send to the screen of either the foreground or background
+  // color.
+  uint16_t *bp = pixels;
+
+  // Loop over the first row of pixels
+  for (uint8_t h = 0; h < font.height; h++) {
+
+    // Loop over each character in the string
+    const char *next_char;
+    size_t l;
+
+    for (l = 0, next_char = str; l < len; l++, next_char++)  {
+
+      // Find the appropriate row of the current character
+      // 32 = space, we don't have glyphs for control characters
+      size_t font_data_start = (*next_char - 32) * font.height;
+
+      // Get this row of pixels from the font data
+      // b = font pixel Bits
+      uint16_t b = font.data[font_data_start + h];
+
+      for (uint8_t w = 0; w < font.width; w++) {
+        // And draw each column pixel for the current character in this row
+        *bp = ((b << w) & 0x8000) ? color : bgcolor;
+        bp++;
+      }
+    }
+  }
+
+  return pixels;
+}
+
+/*
+ * Returns next drawing position:
+ * y in the top 16 bits
+ * x in the bottom 16 bits
+ *
+ * It may be that the next drawing position would not actually fit
+ * fully on the screen - the caller needs to check that:
+ * (new y + font.height > screen height) means off the screen.
+ *
+ * Does not queue any DE/SELECT commands.
+ *
+ * Realize that this could use a lot of RAM and fill up
+ * the SPI transmit queue if we have a lot of characters.
+ * So don't send too many characters at a time...
+ *
+ * This renders each line of the string into a pixel buffer then
+ * queues that for DMA to the screen.
+ */
+uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
+                                        const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
+  size_t len = strlen(str);
+  spiq_size_t remaining = len;
+
+  while (remaining > 0) {
+    // Check if we're off the screen vertically
+    if (y + font.height >= ILI9341_HEIGHT) {
+      break;
+    }
+
+    // Check how many characters we can write on this current line
+    // before we have to advance to the next line
+    if (x + font.width >= ILI9341_WIDTH) {
+      // Advance to the next line
+      x = 0;
+      y += font.height;
+      continue;
+    }
+
+    // Determine how many characters can fit on the remaining line
+    uint16_t x_remaining = ILI9341_WIDTH - x;
+    uint16_t chars_this_line = x_remaining / font.width; // ASSERT: At least 1
+
+    if (chars_this_line > remaining) {
+      // Check if we have fewer characters than would fit
+      chars_this_line = remaining;
+    }
+
+    // Now render all these characters
+    uint16_t *pixels = spidma_ili9341_render_chars(str, chars_this_line, font, color, bgcolor);
+    uint16_t w = font.width * chars_this_line;
+    uint16_t h = font.height; // Gratuitous
+    uint16_t num_pixels = w * h * sizeof(uint16_t);
+
+    // Queue the rendering for display
+    spidma_ili9341_set_address_window(spi, x, y, x + w - 1, y + h - 1);
+    spidma_return_value_t queued = spidma_queue_repeats(spi, SPIDMA_DATA, num_pixels, (uint8_t *)pixels, 70000, 0, 1); // Don't repeat & auto-free
+
+    if (queued == SDRV_FULL) {
+      // Memory may not be freed, so we MAY have a memory leak.
+      ili_queue_failures++;
+    }
+
+    // Advance all our counters for the next line
+    str += chars_this_line;
+    remaining -= chars_this_line;
+    x += w;
+    y += h;
+  }
+  // Return the next character position - which may be off the screen
+  return (y << 16) | x;
+}
+
+
+
+/*
  * Returns next drawing position:
  * y in the top 16 bits
  * x in the bottom 16 bits
@@ -433,8 +568,8 @@ void spidma_ili9341_write_char(spidma_config_t *spi, uint16_t x, uint16_t y,
  * transfer of that buffer to the screen.
  *
  */
-uint32_t spidma_ili9341_write_string(spidma_config_t *spi, uint16_t x, uint16_t y,
-                                        const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
+uint32_t spidma_ili9341_write_string_old(spidma_config_t *spi, uint16_t x, uint16_t y,
+                                            const char *str, FontDef font, uint16_t color, uint16_t bgcolor) {
   spiq_size_t remaining;
 
   while (*str) {
