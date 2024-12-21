@@ -561,12 +561,12 @@ void check_midi_synth() {
  */
 void display_init() {
   // Configure new DMA driver
-  spi_config.bank_cs = GPIO_PA15_SPI2_CS_GPIO_Port;
-  spi_config.pin_cs = GPIO_PA15_SPI2_CS_Pin;
-  spi_config.bank_dc = GPIO_PB8_SPI2_DC_GPIO_Port;
-  spi_config.pin_dc = GPIO_PB8_SPI2_DC_Pin;
-  spi_config.bank_reset = GPIO_PB5_SPI2_RESET_GPIO_Port;
-  spi_config.pin_reset = GPIO_PB5_SPI2_RESET_Pin;
+  spi_config.bank_cs = SPI2_CS_GPIO_Port;
+  spi_config.pin_cs = SPI2_CS_Pin;
+  spi_config.bank_dc = SPI2_DC_GPIO_Port;
+  spi_config.pin_dc = SPI2_DC_Pin;
+  spi_config.bank_reset = SPI2_RESET_GPIO_Port;
+  spi_config.pin_reset = SPI2_RESET_Pin;
   spi_config.use_cs = 1;
   spi_config.use_reset = 1;
   spi_config.spi = &DISPLAY_SPI;

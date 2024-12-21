@@ -220,12 +220,12 @@ static void loop(spidma_config_t *spi) {
 // Main program for an SPI demo
 void spimain(void) {
   // Configure new DMA driver
-  DISPLAY_SPI.bank_cs = GPIO_PA15_SPI2_CS_GPIO_Port;
-  DISPLAY_SPI.pin_cs = GPIO_PA15_SPI2_CS_Pin;
-  DISPLAY_SPI.bank_dc = GPIO_PB8_SPI2_DC_GPIO_Port;
-  DISPLAY_SPI.pin_dc = GPIO_PB8_SPI2_DC_Pin;
-  DISPLAY_SPI.bank_reset = GPIO_PB5_SPI2_RESET_GPIO_Port;
-  DISPLAY_SPI.pin_reset = GPIO_PB5_SPI2_RESET_Pin;
+  DISPLAY_SPI.bank_cs = SPI2_CS_GPIO_Port;
+  DISPLAY_SPI.pin_cs = SPI2_CS_Pin;
+  DISPLAY_SPI.bank_dc = SPI2_DC_GPIO_Port;
+  DISPLAY_SPI.pin_dc = SPI2_DC_Pin;
+  DISPLAY_SPI.bank_reset = SPI2_RESET_GPIO_Port;
+  DISPLAY_SPI.pin_reset = SPI2_RESET_Pin;
   DISPLAY_SPI.use_cs = 1;
   DISPLAY_SPI.use_reset = 1;
   DISPLAY_SPI.spi = &ILI9341_SPI_PORT;
