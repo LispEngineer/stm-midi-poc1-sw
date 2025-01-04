@@ -1140,8 +1140,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIO_PC4_GPIO_Port, GPIO_PC4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, AUDIO_MUTE_Pin|HP_GAIN1_Pin|LED_BLUE_Pin|LED_GREEN_Pin
-                          |LED_RED_Pin|SPI2_RESET_Pin|SPI2_DC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, AUDIO_MUTE_Pin|HP_GAIN1_Pin|HP_GAIN0_Pin|LED_BLUE_Pin
+                          |LED_GREEN_Pin|LED_RED_Pin|SPI2_RESET_Pin|SPI2_DC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPI2_CS_GPIO_Port, SPI2_CS_Pin, GPIO_PIN_RESET);
@@ -1165,19 +1165,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIO_PC4_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : AUDIO_MUTE_Pin HP_GAIN1_Pin LED_BLUE_Pin LED_GREEN_Pin
-                           LED_RED_Pin SPI2_RESET_Pin SPI2_DC_Pin */
-  GPIO_InitStruct.Pin = AUDIO_MUTE_Pin|HP_GAIN1_Pin|LED_BLUE_Pin|LED_GREEN_Pin
-                          |LED_RED_Pin|SPI2_RESET_Pin|SPI2_DC_Pin;
+  /*Configure GPIO pins : AUDIO_MUTE_Pin HP_GAIN1_Pin HP_GAIN0_Pin LED_BLUE_Pin
+                           LED_GREEN_Pin LED_RED_Pin SPI2_RESET_Pin SPI2_DC_Pin */
+  GPIO_InitStruct.Pin = AUDIO_MUTE_Pin|HP_GAIN1_Pin|HP_GAIN0_Pin|LED_BLUE_Pin
+                          |LED_GREEN_Pin|LED_RED_Pin|SPI2_RESET_Pin|SPI2_DC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : HP_GAIN0_Pin BTN2_Pin BTN1_Pin GPIO_PB9_Pin */
-  GPIO_InitStruct.Pin = HP_GAIN0_Pin|BTN2_Pin|BTN1_Pin|GPIO_PB9_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA8 */
@@ -1194,6 +1188,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SPI2_CS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : BTN2_Pin BTN1_Pin GPIO_PB9_Pin */
+  GPIO_InitStruct.Pin = BTN2_Pin|BTN1_Pin|GPIO_PB9_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

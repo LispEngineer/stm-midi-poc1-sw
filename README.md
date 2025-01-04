@@ -272,6 +272,11 @@ Note one board is missing J5 so easy to differentiate.
 
 # Debugging Notes
 
+## FIXED: Gain0 Toggle not toggling
+
+* Pin was set to GPIO_Input instead of GPIO_Output
+
+
 ## MIDI Input Fails after a while
 
 For some unknown reason, the MIDI input now fails after a while.

@@ -36,7 +36,7 @@
 #  define FAST_DATA
 #endif
 
-#define SOFTWARE_VERSION "15"
+#define SOFTWARE_VERSION "16"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
@@ -47,6 +47,7 @@
                      "\ter.  Start/stop tone\r\n" \
                      "\tdf.  Send note on/off\r\n" \
                      "\ta.   Audio mute\r\n" \
+                     "\tg/G. Gain 0/1\r\n" \
                      "\tx.   Reinit UARTs\r\n" \
                      "\t(.   Mem\r\n" \
                      "\t).   Stack\r\n" \
@@ -427,6 +428,20 @@ uint8_t process_user_input(uint8_t opt) {
     // reinit_uarts();
     clear_uart_flags();
     break;
+  case 'g':
+    // FIXME: This is not working (not toggling)
+    HAL_GPIO_TogglePin(HP_GAIN0_GPIO_Port, HP_GAIN0_Pin);
+    l = snprintf(msg, sizeof(msg) - 1, "\r\nGAIN0 now: %d\r\n",
+                 HAL_GPIO_ReadPin(HP_GAIN0_GPIO_Port, HP_GAIN0_Pin));
+    serial_transmit((uint8_t *)msg, l);
+    // TODO: Show gain status on display
+    break;
+  case 'G':
+    HAL_GPIO_TogglePin(HP_GAIN1_GPIO_Port, HP_GAIN1_Pin);
+    l = snprintf(msg, sizeof(msg) - 1, "\r\nGAIN1 now: %d\r\n",
+                 HAL_GPIO_ReadPin(HP_GAIN1_GPIO_Port, HP_GAIN1_Pin));
+    serial_transmit((uint8_t *)msg, l);
+    break;
   case '~':
   case '`':
     // Re-print the options
@@ -637,12 +652,22 @@ void show_intro(spidma_config_t *spi) {
 }
 
 uint32_t last_mute = 776655; // Pick a value not GPIO_PIN_RESET or _SET
+uint32_t last_gain0 = 776655;
+uint32_t last_gain1 = 776655;
 
+/* Draws "MUTED" or not on the screen.
+ * Also draws the gain state on the screen.
+ * Only draws these things when they change.
+ */
 void draw_mute() {
   GPIO_PinState am = HAL_GPIO_ReadPin(AUDIO_MUTE_GPIO_Port, AUDIO_MUTE_Pin);
+  GPIO_PinState g0 = HAL_GPIO_ReadPin(HP_GAIN0_GPIO_Port, HP_GAIN0_Pin);
+  GPIO_PinState g1 = HAL_GPIO_ReadPin(HP_GAIN1_GPIO_Port, HP_GAIN1_Pin);
 
-  if (am != last_mute) {
+  if (am != last_mute || g0 != last_gain0 || g1 != last_gain1) {
     last_mute = am;
+    last_gain0 = g0;
+    last_gain1 = g1;
     if (am == GPIO_PIN_RESET) {
       spidma_ili9341_write_string(spip, 0, Font_11x18.height * 2,
                                   "muted", Font_11x18,
@@ -652,6 +677,11 @@ void draw_mute() {
                                   ".....", Font_11x18,
                                   ILI9341_GREEN, ILI9341_BLACK);
     }
+
+    spidma_ili9341_write_string(spip, Font_11x18.width * 7, Font_11x18.height * 2,
+                                g1 ? "1" : "0", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
+    spidma_ili9341_write_string(spip, Font_11x18.width * 8, Font_11x18.height * 2,
+                                g0 ? "1" : "0", Font_11x18, ILI9341_GREEN, ILI9341_BLACK);
   }
 }
 
@@ -709,7 +739,7 @@ void realmain() {
     // Handle our display
     spidma_check_activity(spip);
 
-    // Update our mute display
+    // Update our mute display and gain status
     draw_mute();
     // TODO: Display state of I2S
     // TODO: Display state of tone generator
