@@ -141,6 +141,12 @@ this functionality:
 * TODO Transfer the memory map over for all the 
   different memory areas
   * And the BSS/Data section initializers
+  
+* Enable performance increasing settings
+  * ART accelerator (Flash read cache)
+  * CPU I-cache
+  * CPU D-cache - but not for DMA memory, put that in D-TCM
+    * Set up the MPU with appropriate regions for the D-cache
 
 ## DONE
 

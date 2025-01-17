@@ -61,9 +61,9 @@
 // This is using LL API
 #define MIDI1_UART          USART1 // Low level USART - HAL would be huart6 // huart6 works with ubld.it & my TLP2362/ISOM8710 circuits
 #define MIDI1_DMA_RX        DMA2
-#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_1
+#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_2
 #define MIDI1_DMA_TX        DMA2
-#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_6
+#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_7
 
 // This is using LL API
 #define CONSOLE_UART          USART2 // Low level USART - HAL would be huart2
@@ -138,8 +138,8 @@ void init_usart_dma_io() {
   midi1_io.usartx = MIDI1_UART;
   midi1_io.dma_rx = MIDI1_DMA_RX;
   midi1_io.dma_rx_stream = MIDI1_DMA_RX_STREAM;
-  midi1_io.dma_rx = MIDI1_DMA_TX;
-  midi1_io.dma_rx_stream = MIDI1_DMA_TX_STREAM;
+  midi1_io.dma_tx = MIDI1_DMA_TX;
+  midi1_io.dma_tx_stream = MIDI1_DMA_TX_STREAM;
   midi1_io.rx_buf = m1_i_buff;
   midi1_io.rx_buf_sz = sizeof(m1_i_buff);
   midi1_io.tx_buf1 = m1_o_buff1;
