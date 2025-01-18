@@ -59,11 +59,25 @@
 #define NOTE_OFF_START_LEN 3
 
 // This is using LL API
-#define MIDI1_UART          USART1 // Low level USART - HAL would be huart6 // huart6 works with ubld.it & my TLP2362/ISOM8710 circuits
+#if 1
+#define MIDI1_UART          USART1 // Low level USART - HAL would be huartN
 #define MIDI1_DMA_RX        DMA2
 #define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_2
 #define MIDI1_DMA_TX        DMA2
 #define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_7
+#elif 0
+#define MIDI1_UART          USART3 // Low level USART - HAL would be huartN
+#define MIDI1_DMA_RX        DMA1
+#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_1
+#define MIDI1_DMA_TX        DMA1
+#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_3
+#else
+#define MIDI1_UART          USART6 // Low level USART - HAL would be huartN
+#define MIDI1_DMA_RX        DMA2
+#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_1
+#define MIDI1_DMA_TX        DMA2
+#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_6
+#endif
 
 // This is using LL API
 #define CONSOLE_UART          USART2 // Low level USART - HAL would be huart2
@@ -74,11 +88,12 @@
 
 // This is using HAL API
 #define I2S_BUFFER_SIZE 256
-#define SOUND1       hi2s1
+#define SOUND1          hi2s1
 
 // This is using HAL API
 #define DISPLAY_SPI  hspi2
 #define DISPLAY_DMA  hdma_spi2_tx
+// TODO: Multiplex this with the Touch Screen SPI?
 
 // From main.c
 // These two are needed if we use HAL UARTs
