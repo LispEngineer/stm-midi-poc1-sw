@@ -2,7 +2,7 @@
  * midi.c
  *
  *  Created on: 2024-09-08
- *  Updated on: 2024-11-16
+ *  Updated on: 2025-01-18
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -481,6 +481,46 @@ int midi_snprintf(char *str, size_t size, midi_message *mm) {
   case 0xE0:
     return snprintf(str, size, "Bend: Chan %d, Amt: %d",
                     mm->channel, MIDI_14bits(mm));
+
+  case 0xF0:
+    switch (mm->type & 0x0F) {
+    // 0 - SysEx
+    case 0:
+      return snprintf(str, size, "SysEx start");
+    // 1 - MIDI Time Code Qtr. Frame
+    case 1:
+      return snprintf(str, size, "MIDI Time Code");
+    // 2 - Song Position Pointer
+    case 2:
+      return snprintf(str, size, "Song Position");
+    // 3 - Song Select
+    case 3:
+      return snprintf(str, size, "Song Select");
+    // 6 - Tune request
+    case 6:
+      return snprintf(str, size, "Tune request");
+    // 7 - End of SysEx (EOX)
+    case 7:
+      return snprintf(str, size, "SysEx end");
+    // 8 - Timing clock
+    case 8:
+      return snprintf(str, size, "Timing clock");
+    // A - Start
+    case 0xA:
+      return snprintf(str, size, "Start");
+    // B - Continue
+    case 0xB:
+      return snprintf(str, size, "Continue");
+    // C - Stop
+    case 0xC:
+      return snprintf(str, size, "Stop");
+    // E - Active Sensing
+    case 0xE:
+      return snprintf(str, size, "Active Sensing");
+    // F - System Reset
+    case 0xF:
+      return snprintf(str, size, "System Reset");
+    }
   }
 
   return snprintf(str, size, "MIDI msg: %02X, %d, %d",
