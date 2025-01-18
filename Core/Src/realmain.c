@@ -5,9 +5,9 @@
  * auto-generated.
  *
  *  Created on: 2024-08-25
- *  Updated on: 2024-11-23
+ *  Updated on: 2025-01-18
  *      Author: Douglas P. Fields, Jr.
- *   Copyright: 2024, Douglas P. Fields, Jr.
+ *   Copyright: 2024-2025, Douglas P. Fields, Jr.
  *     License: Apache 2.0
  */
 
@@ -36,7 +36,7 @@
 #  define FAST_DATA
 #endif
 
-#define SOFTWARE_VERSION "16"
+#define SOFTWARE_VERSION "17"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
@@ -476,28 +476,6 @@ static inline uint16_t read_midi(void) {
   return udcr_read_byte(&midi1_io);
 }
 
-/**
- * Processes a received MIDI byte.
- * For now, just print it (which will certainly lead to overrun).
- */
-void process_midi(uint8_t midi_byte) {
-  char msg[64];
-  midi_message mm;
-
-  // Don't print every byte anymore
-  /*
-  snprintf(msg, sizeof(msg) - 1, "\r\nMIDI byte: %02X\r\n", midi_byte);
-  serial_transmit((uint8_t *)msg, strlen(msg));
-  */
-
-  if (midi_stream_receive(&midi_stream_0, midi_byte, &mm)) {
-    // Received a full MIDI message
-    midi_snprintf(msg, sizeof(msg) - 1, &mm);
-    serial_transmit((uint8_t *)msg, strlen(msg));
-    serial_transmit((uint8_t *)"\r\n", 2);
-  }
-}
-
 // I2S Callbacks ///////////////////////////////////////////////////////////////
 
 /** We have transmitted half the data; we can now re-fill the front
@@ -549,7 +527,8 @@ static uint8_t current_midi_note;
 void check_midi_synth() {
   uint16_t midi_in = read_midi();
   midi_message mm;
-  char msg[64];
+  char msg[91];
+  int msg_len;
 
   if (midi_in <= 0xFF) {
     /*
@@ -572,12 +551,22 @@ void check_midi_synth() {
       }
 
       // And show what we received
-      midi_snprintf(msg, sizeof(msg) - 1, &mm);
+      memset(msg, ' ', sizeof(msg));
+      msg_len = midi_snprintf(msg, sizeof(msg) - 1, &mm);
       serial_transmit((uint8_t *)msg, strlen(msg));
       serial_transmit((uint8_t *)"\r\n", 2);
+      // Extend message to full length
+      msg[msg_len] = ' ';
+      msg[sizeof(msg) - 1] = '\0';
 
       // And display it on the screen
-      spidma_ili9341_fill_rectangle(spip, 0, 0, ILI9341_WIDTH, Font_7x10.height * 2, ILI9341_BLACK);
+      // Instead of filling a rectangle and then writing the string:
+      // Always expand the string to the necessary length (2 full rows?) so it draws it correctly.
+      // 320w x 240h
+      // 320 at 7 per character = 45 wide
+      // so we need 91 character long message including terminal NUL
+      // This looks much better as there is no "black fill flicker"
+      // spidma_ili9341_fill_rectangle(spip, 0, 0, ILI9341_WIDTH, Font_7x10.height * 2, ILI9341_BLACK);
       spidma_ili9341_write_string(spip, 0, 0, msg, Font_7x10, ILI9341_CYAN, ILI9341_BLACK);
     }
   }
@@ -645,7 +634,7 @@ void show_intro(spidma_config_t *spi) {
                               ILI9341_YELLOW, ILI9341_BLACK);
   spidma_empty_queue(spi);
 
-  msg = "STM32 Synth EVT#1";
+  msg = "STM32 Synth EVT#2";
   len = strlen(msg);
   y += font.height * 2;
   x = (ILI9341_WIDTH - len * font.width) >> 1;
