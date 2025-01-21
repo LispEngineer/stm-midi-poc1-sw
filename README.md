@@ -135,6 +135,37 @@ this functionality:
 * Output the tone to the Audio DAC used in this board
 * Display on the PJRC ILI9341 SPI display
 
+## Cache performance
+
+Empirical results: 
+* All this is using just DTCM (64KB)
+* Everything disabled, using AXI interface
+  * Main loops per millisecond: 73-86
+* I-Cache enabled, using AXI interface
+  * Main loops per millisecond: 189-203
+* I-Cache enabled, using AXI interface,
+  instruction prefetch enabled (supposedly only for TCM)
+  * Main loops per millisecond: 195-210
+  * Not sure why this would matter
+* I-Cache enabled, using AXI interface,
+  instruction prefetch enabled (supposedly only for TCM),
+  ART accelerator enabled (supposedly only for TCM)
+  * Main loops per millisecond: 194-211
+
+Conclusion:
+* As far as I can tell, these are basically all the same
+  once the I-Cache is enabled.
+* So, enable the I-Cache when using the AXI Flash interface.
+
+  
+  
+Note:
+* ART accelerator is for accessing Flash through TCM
+  * Prefetch is for using Flash through TCM
+* I-cache is for accessing Flash through AXI
+* I don't think there is any benefit for enabling both
+* By default STM32Cube sets things up for AXI
+
 
 # TODO
 

@@ -30,7 +30,67 @@
 ** If no LICENSE file comes with this software, it is provided AS-IS.
 **
 ******************************************************************************
+**
+** Modifications by Douglas P. Fields, Jr. 2025-01-20,
+** available under Apache 2.0 license - see README.md file.
 */
+
+/**
+ * References:
+ * DS11853 Rev 9 - Data Sheet
+ * RM0431 Rev 3 - Reference Manual
+ * nucleo-uart - https://github.com/LispEngineer/nucleo-uart/blob/main/STM32F767ZITX_FLASH.ld
+ *   (This uses an STM32F767ZIxx)
+ *
+ * RM0431 Section 1.6 - Embedded SRAM
+ *   DTCM-RAM on TCM interface (Data Tightly Coupled Memory)
+ *     0x2000 0000 64KB
+ *   SRAM1
+ *     0x2001 0000 176KB
+ *   SRAM2
+ *     0x2003 C000 16KB
+ *   ITCM-RAM - accessible only by CPU
+ *     0x0000 0000 to 0x0000 3FFF (16KB)
+ *
+ * Concurrent SRAM accesses to SRAM1 and 2
+ * I/DTCM RAM can be accessed 64 bits at a time; the others 32 bits
+ * 
+ * Flash on AXIM interface is at 0x0800 0000 (RM p77)
+ */ 
+ 
+/**
+ * Intended usage:
+ *
+ * ITCM - managed by the system
+ * 
+ * DTCM 
+ *   - Stack
+ *   - I2S data
+ *
+ * SRAM1 & 2
+ *   - Heap
+ *   - Everything else
+ *
+ * We do a LOT of DMA for UART and SPI and I2S.
+ * Hence, it's easier not to enable the data cache,
+ * as that will ensure that the DMA controller will
+ * always read from Memory correctly instead of stale
+ * data from unflushed (dirty) cache lines in L1 cache.
+ *
+ * As a TODO, though, we could enable data caching and
+ * every time we write to a DMA buffer, we could tell
+ * the processor to flush the appropriate parts of the
+ * L1 data cache, and every time we read from a DMA buffer
+ * we could tell it to clear the cache.
+ *
+ * Minor note: A 320x240 display has 75k pixels, so
+ * a 24-bit framebuffer would take 225kB!
+ */
+ 
+/* Empirical results:
+ *
+ * Using DTCM only:
+ */
 
 /* Entry Point */
 ENTRY(Reset_Handler)
@@ -44,8 +104,15 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 256K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 512K
+  RAMORIG (xrw)    : ORIGIN = 0x20000000,   LENGTH = 256K /* The original RAM defined in linker script */
+  
+  RAM     (xrw)    : ORIGIN = 0x20000000,   LENGTH = 64K  /* Test using just the DTCM */
+  FLASH   (xr)     : ORIGIN = 0x08000000,   LENGTH = 512K
+  
+  ITCM    (xrw)    : ORIGIN = 0x00000000,   LENGTH = 16K
+  DTCM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 64K
+  SRAM1   (xrw)    : ORIGIN = 0x20010000,   LENGTH = 176K
+  SRAM2   (xrw)    : ORIGIN = 0x2003C000,   LENGTH = 16K
 }
 
 /* Sections */
