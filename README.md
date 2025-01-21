@@ -48,12 +48,25 @@ Software for my
 * Power: USB-C
 * Programming: SWD (with 5-pin header, no SWO)
 
+Key STM32F722 Manuals:
+* Data sheet - DS11853 Rev 9
+* Errata - ES0360 Rev 5
+* Reference manual - RM0431 Rev 3
+* Programming manual - PM0253 Rev 5
+* STM32F7 HAL and LL - UM1905 Rev 5
+* STM32CubeMX - UM1718
+
 External hardware:
-* USB Console: Inland FT232 TTL UART to USB board
+* ST-Link v3: SWD & UART (USART2 console)
+  * [STLINK-V3SET](https://www.st.com/en/development-tools/stlink-v3set.html)
+* USB Console: Inland FT232 TTL UART to USB board (when not using ST-Link)
   * [Similar to this one](https://www.ebay.com/itm/142909573493)
 * SPI Display: [PJRC ILI9341](https://www.pjrc.com/store/display_ili9341_touch.html)
 
+## Misc References
 
+* [Embedded C Coding Standard](https://barrgroup.com/embedded-systems/books/embedded-c-coding-standard)
+* [STM32 Gotchas](http://www.efton.sk/STM32/gotcha/)
 
 # Pinout
 
@@ -157,7 +170,9 @@ Conclusion:
   once the I-Cache is enabled.
 * So, enable the I-Cache when using the AXI Flash interface.
 
-  
+MPU:
+* Disabling the MPU seems to make no difference to performance.
+* Not sure why the MPU was enabled by default.
   
 Note:
 * ART accelerator is for accessing Flash through TCM
@@ -168,6 +183,13 @@ Note:
 
 
 # TODO
+
+* Make all DMA memory reads and writes volatile
+  so the compiler doesn't optimize them and forces
+  a read from RAM (or Cache)
+* With appropriate #ifdefs, add cache invalidation
+  for all DMA memory reads and writes (and ensure
+  the compiler thinks the memory is volatile).
 
 * TODO Transfer the memory map over for all the 
   different memory areas

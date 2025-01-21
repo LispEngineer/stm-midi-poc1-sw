@@ -82,6 +82,12 @@
  * the processor to flush the appropriate parts of the
  * L1 data cache, and every time we read from a DMA buffer
  * we could tell it to clear the cache.
+ * We can use the DMB and DSB instructions to implement this.
+ * (See ARM: https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Application-Level-Memory-Model/Memory-access-order/Memory-barriers?lang=en
+ *  and https://developer.arm.com/documentation/101051/0101/Memory-system/Instruction-and-data-cache - but that's for the Cortex-M55)
+ * We can also use CMSIS D-Cache functions.
+ * (See ARM: https://arm-software.github.io/CMSIS_6/latest/Core/group__Dcache__functions__m7.html,
+ *  specifically SCB_InvalidateDCache_by_Addr)
  *
  * Minor note: A 320x240 display has 75k pixels, so
  * a 24-bit framebuffer would take 225kB!
