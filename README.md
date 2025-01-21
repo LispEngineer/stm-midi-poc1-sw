@@ -53,6 +53,8 @@ Key STM32F722 Manuals:
 * Errata - ES0360 Rev 5
 * Reference manual - RM0431 Rev 3
 * Programming manual - PM0253 Rev 5
+* System architecture & performance - AN4667 DocID027643 Rev 4
+* L1 Cache - AN4839 Rev 2
 * STM32F7 HAL and LL - UM1905 Rev 5
 * STM32CubeMX - UM1718
 
@@ -67,6 +69,10 @@ External hardware:
 
 * [Embedded C Coding Standard](https://barrgroup.com/embedded-systems/books/embedded-c-coding-standard)
 * [STM32 Gotchas](http://www.efton.sk/STM32/gotcha/)
+* [Demystifying Arm GNU Toolchain Specs](https://metebalci.com/blog/demystifying-arm-gnu-toolchain-specs-nano-and-nosys/)
+* [GNU Tools for STM32 12.3.rel1](https://github.com/STMicroelectronics/gnu-tools-for-stm32)
+	* [ARM NewLib](https://github.com/STMicroelectronics/gnu-tools-for-stm32/tree/12.3.rel1/src/newlib/newlib) 4.2.0
+	  * [NEWS file](https://sourceware.org/git/?p=newlib-cygwin.git;a=blob;f=newlib/NEWS;h=ce4391367b5d6c6aed58cc5b7ad531420f2c9d51;hb=HEAD)
 
 # Pinout
 
@@ -148,9 +154,17 @@ this functionality:
 * Output the tone to the Audio DAC used in this board
 * Display on the PJRC ILI9341 SPI display
 
+## Sizes
+
+In `Debug` build, as of this commit
+(see Blame for the commit),
+* text: 52k
+* data: 732
+* bss: 12k
+
 ## Cache performance
 
-Empirical results: 
+Empirical results: (Debug mode)
 * All this is using just DTCM (64KB)
 * Everything disabled, using AXI interface
   * Main loops per millisecond: 73-86
@@ -164,11 +178,17 @@ Empirical results:
   instruction prefetch enabled (supposedly only for TCM),
   ART accelerator enabled (supposedly only for TCM)
   * Main loops per millisecond: 194-211
+* I-Cache and D-Cache enabled,
+  but no special code for DMA management
+  due to using only 64kB DTCM
+  * Main loops per millisecond: 243-260
 
 Conclusion:
-* As far as I can tell, these are basically all the same
-  once the I-Cache is enabled.
+* As far as I can tell, the I-Cache enabled, D-Cache disabled
+  are basically all the same once the I-Cache is enabled.
 * So, enable the I-Cache when using the AXI Flash interface.
+* The D-Cache enabled adds another 20-25% performance at seemingly
+  no cost.
 
 MPU:
 * Disabling the MPU seems to make no difference to performance.
@@ -179,7 +199,11 @@ Note:
   * Prefetch is for using Flash through TCM
 * I-cache is for accessing Flash through AXI
 * I don't think there is any benefit for enabling both
-* By default STM32Cube sets things up for AXI
+* By default STM32Cube sets things up for AXI Flash
+* "The L1-cache can be a performance booster when used in conjunction with memory interfaces on AXI bus. This must not be confused with memories on the Tightly Couple Memory (TCM) interface, which are not cacheable."
+  * AN4839 Rev 2 page 4
+* "If the software is using cacheable memory regions for the DMA source/or destination buffers. The software must trigger a cache clean before starting a DMA operation to ensure that all the data are committed to the subsystem memory. After the DMA transfer complete, when reading the data from the peripheral, the software must perform a cache invalidate before reading the DMA updated memory region."
+  * AN4839 Rev 2 page 8
 
 
 # TODO
@@ -190,6 +214,18 @@ Note:
 * With appropriate #ifdefs, add cache invalidation
   for all DMA memory reads and writes (and ensure
   the compiler thinks the memory is volatile).
+  * Alternatively, set up a memory region that the
+    MPU has marked non-cacheable for DMA. Do all DMA
+    from there. This may necessitate:
+    * 1. BSS allocation
+    * 2. data allocation (initialized variables)
+    * 3. Special heap with dynamic memory allocator
+      since I dynamically allocate SPI DMA transmit
+      buffers (e.g., [this one](https://github.com/embeddedartistry/libmemory))
+* Analyze the allocations of `malloc()` in my application;
+  they are all currently in `spidma_ili9341.c` and the corresponding
+  `free()` are in `spidma.c`   
+    
 
 * TODO Transfer the memory map over for all the 
   different memory areas

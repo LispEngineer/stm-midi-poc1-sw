@@ -90,14 +90,15 @@
  *  specifically SCB_InvalidateDCache_by_Addr)
  *
  * Minor note: A 320x240 display has 75k pixels, so
- * a 24-bit framebuffer would take 225kB!
+ * a 16-bit framebuffer would take 150kB!
  */
  
-/* Empirical results:
- *
- * Using DTCM only:
+/**
+ * Migration to STM32H7 notes:
+ * "The default memory used by most of ST projects is DTCM which is not accessible by DMA in STM32H7 devices."
+ * See: https://community.st.com/t5/stm32-mcus-products/confused-about-dma-and-cache-on-stm32-h7-devices/td-p/178674
  */
-
+ 
 /* Entry Point */
 ENTRY(Reset_Handler)
 
@@ -112,6 +113,7 @@ MEMORY
 {
   RAMORIG (xrw)    : ORIGIN = 0x20000000,   LENGTH = 256K /* The original RAM defined in linker script */
   
+  /* IMPORTANT: DO NOT CHANGE THIS FROM DTCM WITHOUT DISABLING D-CACHE!!! */
   RAM     (xrw)    : ORIGIN = 0x20000000,   LENGTH = 64K  /* Test using just the DTCM */
   FLASH   (xr)     : ORIGIN = 0x08000000,   LENGTH = 512K
   
