@@ -102,7 +102,10 @@
 /* Entry Point */
 ENTRY(Reset_Handler)
 
-/* Highest address of the user mode stack */
+/* Highest address of the user mode stack. 
+ * TODO: Make this purely in DTCM for speed,
+ * and make it a fixed size.
+ */
 _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
 
 _Min_Heap_Size = 0x200; /* required amount of heap */
@@ -111,7 +114,7 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAMORIG (xrw)    : ORIGIN = 0x20000000,   LENGTH = 256K /* The original RAM defined in linker script */
+  ALLRAM  (xrw)    : ORIGIN = 0x20000000,   LENGTH = 256K /* The original RAM defined in linker script */
   
   /* IMPORTANT: DO NOT CHANGE THIS FROM DTCM WITHOUT DISABLING D-CACHE!!! */
   RAM     (xrw)    : ORIGIN = 0x20000000,   LENGTH = 64K  /* Test using just the DTCM */
@@ -121,6 +124,10 @@ MEMORY
   DTCM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 64K
   SRAM1   (xrw)    : ORIGIN = 0x20010000,   LENGTH = 176K
   SRAM2   (xrw)    : ORIGIN = 0x2003C000,   LENGTH = 16K
+  
+  /* We configure the MPU not to cache this memory,
+   * so we can use it with impunity for DMA. */
+  NONCACHE (rw)    : ORIGIN = 0x20030000,   LENGTH = 64K
 }
 
 /* Sections */
