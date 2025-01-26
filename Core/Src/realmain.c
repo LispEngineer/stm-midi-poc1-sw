@@ -27,17 +27,7 @@
 #include "fonts.h"
 #include "usartdma.h"
 
-#define USE_FAST_MEMORY
-#ifdef USE_FAST_MEMORY
-// When we set up our memory map, use these
-#  define FAST_BSS __attribute((section(".fast_bss")))
-#  define FAST_DATA __attribute((section(".fast_data")))
-#else // Don't USE_FAST_MEMORY
-#  define FAST_BSS
-#  define FAST_DATA
-#endif
-
-#define SOFTWARE_VERSION "19"
+#define SOFTWARE_VERSION "20"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
@@ -49,7 +39,7 @@
                      "\tdf.  Send note on/off\r\n" \
                      "\ta.   Audio mute\r\n" \
                      "\tg/G. Gain 0/1\r\n" \
-                     "\tx.   Reinit UARTs\r\n" \
+                     "\tx.   Show/clear MIDI1 flags\r\n" \
                      "\t(.   Mem\r\n" \
                      "\t).   Stack\r\n" \
                      "\t~.   Menu"
@@ -115,16 +105,16 @@ static uint32_t loops_per_tick;
 static uint32_t midi_received = 0; // For receive interrupts
 
 // MIDI1 I/O buffers
-FAST_BSS uint8_t m1_o_buff1[32];
-FAST_BSS uint8_t m1_o_buff2[sizeof(m1_o_buff1)];
-FAST_BSS uint8_t m1_i_buff[32];
-usart_dma_config_t midi1_io; // MIDI Input Receive
+DMA_BSS uint8_t m1_o_buff1[32];
+DMA_BSS uint8_t m1_o_buff2[sizeof(m1_o_buff1)];
+DMA_BSS uint8_t m1_i_buff[32];
+FAST_BSS usart_dma_config_t midi1_io; // MIDI Input Receive
 
 // Console I/O
-FAST_BSS uint8_t c_i_buff[32];
-FAST_BSS uint8_t c_o_buff1[512];
-FAST_BSS uint8_t c_o_buff2[sizeof(c_o_buff1)];
-usart_dma_config_t console_io;
+DMA_BSS uint8_t c_i_buff[32];
+DMA_BSS uint8_t c_o_buff1[512];
+DMA_BSS uint8_t c_o_buff2[sizeof(c_o_buff1)];
+FAST_BSS usart_dma_config_t console_io;
 
 // MIDI input parsers
 FAST_BSS midi_stream midi_stream_0;
@@ -132,6 +122,10 @@ FAST_BSS midi_stream midi_stream_0;
 // Test Fast Data
 FAST_DATA char test_fast_string[] = "Fast string!";
 FAST_DATA size_t tfs_len = sizeof(test_fast_string) - 1;
+
+// Test DMA Data
+DMA_DATA char test_dma_string[] = "DMA STR";
+DMA_DATA size_t tds_len = sizeof(test_dma_string) - 1;
 
 // Tone Generator
 FAST_BSS tonegen_state tonegen1;
@@ -141,8 +135,7 @@ FAST_BSS spidma_config_t spi_config;
 spidma_config_t *spip;
 
 // I2S output buffer for DMA
-// TODO: Move to SRAM2 which will only be used for DMA
-int16_t i2s_buff[I2S_BUFFER_SIZE];
+DMA_BSS int16_t i2s_buff[I2S_BUFFER_SIZE];
 // Which half of the buffer are we writing to
 // next?
 FAST_DATA static volatile int16_t *i2s_buff_write;
@@ -222,10 +215,12 @@ static inline uint16_t serial_read() {
 }
 
 void printWelcomeMessage(void) {
-  serial_transmit((uint8_t *)"\r\n\r\n", strlen("\r\n\r\n"));
-  serial_transmit((uint8_t *)">>>", 3);
+  serial_transmit((uint8_t *)"\r\n\r\n", 4);
+  serial_transmit((uint8_t *)">", 1);
   serial_transmit((uint8_t *)test_fast_string, tfs_len);
-  serial_transmit((uint8_t *)"<<<\r\n", 5);
+  serial_transmit((uint8_t *)"<\r\n>", 4);
+  serial_transmit((uint8_t *)test_dma_string, tds_len);
+  serial_transmit((uint8_t *)"<\r\n", 3);
   serial_transmit((uint8_t *)WELCOME_MSG, strlen(WELCOME_MSG));
   serial_transmit((uint8_t *)MAIN_MENU, strlen(MAIN_MENU));
 }
@@ -311,12 +306,12 @@ void alloc_test() {
 
 void clear_uart_flags() {
   char msg[64];
-  snprintf(msg, sizeof(msg), "LBD: %c, PE: %c, NE: %c, ORE: %c, IDLE: %c",
-           LL_USART_IsActiveFlag_LBD(MIDI1_UART) ? 'A' : ' ',
-           LL_USART_IsActiveFlag_PE(MIDI1_UART) ? 'A' : ' ',
-           LL_USART_IsActiveFlag_NE(MIDI1_UART) ? 'A' : ' ',
-           LL_USART_IsActiveFlag_ORE(MIDI1_UART) ? 'A' : ' ',
-           LL_USART_IsActiveFlag_IDLE(MIDI1_UART) ? 'A' : ' ');
+  snprintf(msg, sizeof(msg), "\r\nLBD: %c, PE: %c, NE: %c, ORE: %c, IDLE: %c\r\n",
+           LL_USART_IsActiveFlag_LBD(MIDI1_UART) ? 'A' : '-',
+           LL_USART_IsActiveFlag_PE(MIDI1_UART) ? 'A' : '-',
+           LL_USART_IsActiveFlag_NE(MIDI1_UART) ? 'A' : '-',
+           LL_USART_IsActiveFlag_ORE(MIDI1_UART) ? 'A' : '-',
+           LL_USART_IsActiveFlag_IDLE(MIDI1_UART) ? 'A' : '-');
   serial_transmit((uint8_t *)msg,  strlen(msg));
 
   LL_USART_ClearFlag_LBD(MIDI1_UART);
@@ -443,7 +438,6 @@ uint8_t process_user_input(uint8_t opt) {
     stack_overflow_test();
     break;
   case 'x':
-    // reinit_uarts();
     clear_uart_flags();
     break;
   case 'g':

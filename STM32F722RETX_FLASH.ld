@@ -242,12 +242,14 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  /* Used by the startup to initialize data & fastdata */
+  /* Used by the startup to initialize data, fastdata & dmadata.
+   * It's unlikely there will be much dmadata though! */
   /* Per manual: Return the absolute load address of the named section. This is 
    * normally the same as ADDR, but it may be different if the AT keyword is used 
    * in the section definition (see section Optional Section Attributes). */
   _sidata = LOADADDR(.data);
   _sifastdata = LOADADDR(.fast_data);
+  _sidmadata = LOADADDR(.dma_data);
   
   /* Symbols related to FASTRAM which is located in the DTCM:
    * _sifastdata = the LOADADDR of the .fast_data segment
@@ -328,6 +330,29 @@ SECTIONS
     . = ALIGN(4);
     _efbss = .;
   } >FASTRAM
+
+  /* Initialized data sections into "DMARAM" non-cached memory */
+  .dma_data :
+  {
+    . = ALIGN(4);
+    _sdmadata = .;        /* create a global symbol at data start */
+    *(.dma_data)          /* .fast_data sections */
+    *(.dma_data*)         /* .fast_data* sections */
+    . = ALIGN(4);
+    _edmadata = .;        /* define a global symbol at data end */
+
+  } >DMARAM AT> FLASH
+
+  /* Unnitialized (zero-initialized) data sections into "DMARAM" non-cached memory */
+  ._dma_bss :
+  {
+    _sdmabss = .;
+    . = ALIGN(4);
+    *(.dma_bss)
+    *(.dma_bss*)
+    . = ALIGN(4);
+    _edmabss = .;
+  } >DMARAM
   
 
   /* Remove information from the compiler libraries */

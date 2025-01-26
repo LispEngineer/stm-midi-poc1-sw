@@ -64,6 +64,10 @@ defined in linker script */
 .word  _sfbss
 /* end address for the .fast_bss section. defined in linker script */
 .word  _efbss
+/* start address for the .dma_bss section. defined in linker script */
+.word  _sdmabss
+/* end address for the .dma_bss section. defined in linker script */
+.word  _edmabss
 
 
 /**
@@ -84,7 +88,8 @@ Reset_Handler:
 /* Call the clock system initialization function.*/
   bl  SystemInit 
 
-/* Copy the data segment initializers from flash to SRAM */  
+/* Copy the data segment initializers from flash to SRAM */
+StartDataSegmentCopy:
   ldr r0, =_sdata
   ldr r1, =_edata
   ldr r2, =_sidata
@@ -102,6 +107,7 @@ LoopCopyDataInit:
   bcc CopyDataInit
 
 /* Copy the fast_data segment initializers from flash to SRAM */
+StartFastDataCopy:
   ldr r0, =_sfastdata /* Where we are copying to */
   ldr r1, =_efastdata /* How we know we've copied enough - the end */
   ldr r2, =_sifastdata /* Where we are copying from */
@@ -123,7 +129,31 @@ LoopCopyFastDataInit:
   cmp r4, r1
   bcc CopyFastDataInit
 
+/* Copy the dma_data segment initializers from flash to SRAM */
+StartDMADataCopy:
+  ldr r0, =_sdmadata /* Where we are copying to */
+  ldr r1, =_edmadata /* How we know we've copied enough - the end */
+  ldr r2, =_sidmadata /* Where we are copying from */
+  /* r3 = our index counter starting at 0
+   * r4 = the data being copied and the final address */
+  movs r3, #0
+  b LoopCopyDMADataInit
+
+CopyDMADataInit:
+  /* Load a word from flash and copy it to RAM */
+  ldr r4, [r2, r3]
+  str r4, [r0, r3]
+  /* Then go to the next word */
+  adds r3, r3, #4
+
+LoopCopyDMADataInit:
+  /* See if we've copied the last word and if not, copy the next one */
+  adds r4, r0, r3
+  cmp r4, r1
+  bcc CopyDMADataInit
+
 /* Zero fill the bss segment. */
+StartFillBSSSegment:
   ldr r2, =_sbss
   ldr r4, =_ebss
   movs r3, #0
@@ -138,6 +168,7 @@ LoopFillZerobss:
   bcc FillZerobss
 
 /* Zero fill the fast_bss segment. */
+StartFillFastBSS:
   ldr r2, =_sfbss /* Start of the fast_bss segment and our current address / loop index */
   ldr r4, =_efbss /* End of the fast_bss segment */
   movs r3, #0 /* Known zero */
@@ -153,12 +184,31 @@ LoopFillZerofastbss:
   cmp r2, r4
   bcc FillZerofastbss
 
+/* Zero fill the dma_bss segment. */
+StartFillDMABSS:
+  ldr r2, =_sdmabss /* Start of the fast_bss segment and our current address / loop index */
+  ldr r4, =_edmabss /* End of the fast_bss segment */
+  movs r3, #0 /* Known zero */
+  b LoopFillZeroDMAbss
+
+FillZeroDMAbss:
+  /* Store a zero and go to the next word */
+  str  r3, [r2]
+  adds r2, r2, #4
+
+LoopFillZeroDMAbss:
+  /* Repeat until we have finished (when our counter exceeds the end */
+  cmp r2, r4
+  bcc FillZeroDMAbss
+
 
 /* Call static constructors */
-    bl __libc_init_array
+CallStaticConstructors:
+  bl __libc_init_array
 /* Call the application's entry point.*/
+CallApplicationEntryPoint:
   bl  main
-  bx  lr    
+  bx  lr /* LR = R14 = Link Register, see: https://developer.arm.com/documentation/107656/0101/Registers/Registers-in-the-register-bank/R14--Link-Register--LR- */
 .size  Reset_Handler, .-Reset_Handler
 
 /**
