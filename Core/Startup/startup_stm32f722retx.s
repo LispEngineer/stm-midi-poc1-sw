@@ -23,6 +23,19 @@
   *
   ******************************************************************************
   */
+
+ /*
+  *  Updated on: 2025-01-25
+  *      Author: Douglas P. Fields, Jr.
+  *   Copyright: 2025, Douglas P. Fields, Jr.
+  *     License: Apache 2.0
+  *
+  * Updated as follows:
+  *
+  * TODO:
+  * * Initialize FASTRAM data & BSS
+  */
+
     
   .syntax unified
   .cpu cortex-m7
@@ -54,7 +67,7 @@ defined in linker script */
  * @retval : None
 */
 
-    .section  .text.Reset_Handler
+.section  .text.Reset_Handler
   .weak  Reset_Handler
   .type  Reset_Handler, %function
 Reset_Handler:  

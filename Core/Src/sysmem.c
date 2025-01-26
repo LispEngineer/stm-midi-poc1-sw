@@ -20,6 +20,18 @@
  ******************************************************************************
  */
 
+ /*
+  *  Updated on: 2025-01-25
+  *      Author: Douglas P. Fields, Jr.
+  *   Copyright: 2025, Douglas P. Fields, Jr.
+  *     License: Apache 2.0
+  *
+  * Updated as follows:
+  * * Remove reference to _Min_Stack_Size as the stack is now fully
+  *   pre-allocated and of a fixed size in DTCM.
+  */
+
+
 /* Includes */
 #include <errno.h>
 #include <stdint.h>
@@ -34,18 +46,15 @@ static uint8_t *__sbrk_heap_end = NULL;
  *        and others from the C library
  *
  * @verbatim
- * ############################################################################
- * #  .data  #  .bss  #       newlib heap       #          MSP stack          #
- * #         #        #                         # Reserved by _Min_Stack_Size #
- * ############################################################################
- * ^-- RAM start      ^-- _end                             _estack, RAM end --^
+ * ##############################################
+ * #  .data  #  .bss  #       newlib heap       #
+ * #         #        #                         #
+ * ##############################################
+ * ^-- RAM start      ^-- _end        _eheap ---^
  * @endverbatim
  *
- * This implementation starts allocating at the '_end' linker symbol
- * The '_Min_Stack_Size' linker symbol reserves a memory for the MSP stack
- * The implementation considers '_estack' linker symbol to be RAM end
- * NOTE: If the MSP stack, at any point during execution, grows larger than the
- * reserved size, please increase the '_Min_Stack_Size'.
+ * This implementation starts allocating at the '_end' linker symbol,
+ * and considers the end of the heap at the '_eheap' linker symbol.
  *
  * @param incr Memory size
  * @return Pointer to allocated memory
@@ -53,10 +62,8 @@ static uint8_t *__sbrk_heap_end = NULL;
 void *_sbrk(ptrdiff_t incr)
 {
   extern uint8_t _end; /* Symbol defined in the linker script */
-  extern uint8_t _estack; /* Symbol defined in the linker script */
-  extern uint32_t _Min_Stack_Size; /* Symbol defined in the linker script */
-  const uint32_t stack_limit = (uint32_t)&_estack - (uint32_t)&_Min_Stack_Size;
-  const uint8_t *max_heap = (uint8_t *)stack_limit;
+  extern uint8_t _eheap; /* End of heap (standard memory) - defined in linker script */
+  const uint8_t *max_heap = (uint8_t *)&_eheap; // TODO: Explain this odd syntax
   uint8_t *prev_heap_end;
 
   /* Initialize heap end at first call */

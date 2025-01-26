@@ -36,7 +36,7 @@
 #  define FAST_DATA
 #endif
 
-#define SOFTWARE_VERSION "17"
+#define SOFTWARE_VERSION "18"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
@@ -282,11 +282,12 @@ void stack_overflow_test(void) {
 
 /** Allocate memory until we get to ENOMEM */
 void alloc_test() {
-  char msg[40];
+  char msg[50];
   uint32_t t;
 
   void *m;
   size_t amount = 10240;
+  size_t total = 0;
 
   do {
     m = malloc(amount);
@@ -294,7 +295,8 @@ void alloc_test() {
       snprintf(msg, sizeof(msg) - 1, "OOM: %d; amt: %u\r\n", errno, amount);
       amount >>= 1;
     } else {
-      snprintf(msg, sizeof(msg) - 1, "Addr: %08lX; amt: %u\r\n", (uint32_t)m, amount);
+      total += amount;
+      snprintf(msg, sizeof(msg) - 1, "Addr: %08lX; amt: %u; total: %lx\r\n", (uint32_t)m, amount, (uint32_t)total);
     }
     serial_transmit((uint8_t *)msg, strlen(msg));
 

@@ -106,28 +106,55 @@ ENTRY(Reset_Handler)
  * TODO: Make this purely in DTCM for speed,
  * and make it a fixed size.
  */
-_estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
+_estack = ORIGIN(STACK) + LENGTH(STACK); /* end of "STACK" RAM type memory (start of DTCM) */
+_eheap = ORIGIN(RAM) + LENGTH(RAM); /* End of normal RAM type memory (end of the heap) */
 
 _Min_Heap_Size = 0x200; /* required amount of heap */
-_Min_Stack_Size = 0x400; /* required amount of stack */
+_DTCM_Stack_Size = 0x4000; /* 16 KB */
+_DMARAM_Size = 0x10000; /* 64 KB */
+
+/** Here is our memory layout
+ *
+ * DTCM             STACK (size above)
+ *                  FASTRAM (remainder of DTCM)
+ * SRAM1            BSS, DATA
+ *                  HEAP
+ *                  DMARAM
+ * SRAM2            DMARAM (continued)
+ */
 
 /* Memories definition */
 MEMORY
 {
+  /* Here's all our (data) memory */
   ALLRAM  (xrw)    : ORIGIN = 0x20000000,   LENGTH = 256K /* The original RAM defined in linker script */
   
-  /* IMPORTANT: DO NOT CHANGE THIS FROM DTCM WITHOUT DISABLING D-CACHE!!! */
-  RAM     (xrw)    : ORIGIN = 0x20000000,   LENGTH = 64K  /* Test using just the DTCM */
-  FLASH   (xr)     : ORIGIN = 0x08000000,   LENGTH = 512K
-  
+  /* Here are our individual RAM blocks */
   ITCM    (xrw)    : ORIGIN = 0x00000000,   LENGTH = 16K
   DTCM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 64K
   SRAM1   (xrw)    : ORIGIN = 0x20010000,   LENGTH = 176K
   SRAM2   (xrw)    : ORIGIN = 0x2003C000,   LENGTH = 16K
+
+  /* Here's the flash - program storage and constant data. */
+  FLASH   (xr)     : ORIGIN = 0x08000000,   LENGTH = 512K
+
+  /* The Stack is in DTCM for speed.
+   * Then, there is "FASTRAM" in DTCM for other things that have
+   * to be fast.
+   * DTCM size total is 64K. 
+   */
+  STACK   (rw)     : ORIGIN = ORIGIN(DTCM),   LENGTH = _DTCM_Stack_Size /* DTCM bottom */
+  FASTRAM (xrw)    : ORIGIN = ORIGIN(DTCM) + _DTCM_Stack_Size, LENGTH = LENGTH(DTCM) - _DTCM_Stack_Size /* DTCM TOP */
+
+  /* Then there is slow RAM after DTCM, of size 176K + 16K
+   * which is 64K x 3. */
+  RAM     (xrw)    : ORIGIN = ORIGIN(SRAM1),   LENGTH = LENGTH(SRAM1) + LENGTH(SRAM2) - _DMARAM_Size
   
-  /* We configure the MPU not to cache this memory,
+  /* Finally there is DMA RAM which is non-cached.
+   * This happens to cover both SRAM1 and SRAM2.
+   * We configure the MPU not to cache this memory,
    * so we can use it with impunity for DMA. */
-  NONCACHE (rw)    : ORIGIN = 0x20030000,   LENGTH = 64K
+  DMARAM  (xrw)    : ORIGIN = ORIGIN(RAM) + LENGTH(RAM),   LENGTH = _DMARAM_Size
 }
 
 /* Sections */
@@ -246,16 +273,47 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
-  /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
-  ._user_heap_stack :
+  /* User_heap section, used to check that there is enough "RAM" Ram  type memory left.
+   * Stack is allocated separately. */
+  ._user_heap :
   {
     . = ALIGN(8);
     PROVIDE ( end = . );
     PROVIDE ( _end = . );
     . = . + _Min_Heap_Size;
-    . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
+  
+  ._stack :
+  {
+    PROVIDE ( _stack_start = . );
+    . = . + _DTCM_Stack_Size;
+    PROVIDE ( _stack_end = . );
+  } >FASTRAM
+  
+  /* Initialized data sections into "RAM" Ram type memory */
+  ._fast_data :
+  {
+    . = ALIGN(4);
+    _sfastdata = .;        /* create a global symbol at data start */
+    *(.fast_data)          /* .fast_data sections */
+    *(.fast_data*)         /* .fast_data* sections */
+    . = ALIGN(4);
+    _efastdata = .;        /* define a global symbol at data end */
+
+  } >FASTRAM AT> FLASH
+
+  /* Fast data section */
+  ._fast_bss :
+  {
+    _sfbss = .;
+    . = ALIGN(4);
+    *(.fast_bss)
+    *(.fast_bss*)
+    . = ALIGN(4);
+    _efbss = .;
+  } >FASTRAM
+  
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :
