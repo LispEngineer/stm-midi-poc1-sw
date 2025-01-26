@@ -31,9 +31,9 @@
   *     License: Apache 2.0
   *
   * Updated as follows:
+  * * Initialize FASTRAM data & BSS
   *
   * TODO:
-  * * Initialize FASTRAM data & BSS
   * * Initialize DMARAM data & BSS
   */
 
@@ -58,6 +58,13 @@ defined in linker script */
 /* end address for the .bss section. defined in linker script */
 .word  _ebss
 /* stack used for SystemInit_ExtMemCtl; always internal RAM used */
+
+
+/* start address for the .fast_bss section. defined in linker script */
+.word  _sfbss
+/* end address for the .fast_bss section. defined in linker script */
+.word  _efbss
+
 
 /**
  * @brief  This is the code that gets called when the processor first
@@ -93,7 +100,29 @@ LoopCopyDataInit:
   adds r4, r0, r3
   cmp r4, r1
   bcc CopyDataInit
-  
+
+/* Copy the fast_data segment initializers from flash to SRAM */
+  ldr r0, =_sfastdata /* Where we are copying to */
+  ldr r1, =_efastdata /* How we know we've copied enough - the end */
+  ldr r2, =_sifastdata /* Where we are copying from */
+  /* r3 = our index counter starting at 0
+   * r4 = the data being copied and the final address */
+  movs r3, #0
+  b LoopCopyFastDataInit
+
+CopyFastDataInit:
+  /* Load a word from flash and copy it to RAM */
+  ldr r4, [r2, r3]
+  str r4, [r0, r3]
+  /* Then go to the next word */
+  adds r3, r3, #4
+
+LoopCopyFastDataInit:
+  /* See if we've copied the last word and if not, copy the next one */
+  adds r4, r0, r3
+  cmp r4, r1
+  bcc CopyFastDataInit
+
 /* Zero fill the bss segment. */
   ldr r2, =_sbss
   ldr r4, =_ebss
@@ -107,6 +136,23 @@ FillZerobss:
 LoopFillZerobss:
   cmp r2, r4
   bcc FillZerobss
+
+/* Zero fill the fast_bss segment. */
+  ldr r2, =_sfbss /* Start of the fast_bss segment and our current address / loop index */
+  ldr r4, =_efbss /* End of the fast_bss segment */
+  movs r3, #0 /* Known zero */
+  b LoopFillZerofastbss
+
+FillZerofastbss:
+  /* Store a zero and go to the next word */
+  str  r3, [r2]
+  adds r2, r2, #4
+
+LoopFillZerofastbss:
+  /* Repeat until we have finished (when our counter exceeds the end */
+  cmp r2, r4
+  bcc FillZerofastbss
+
 
 /* Call static constructors */
     bl __libc_init_array

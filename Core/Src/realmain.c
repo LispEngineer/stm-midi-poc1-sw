@@ -27,6 +27,7 @@
 #include "fonts.h"
 #include "usartdma.h"
 
+#define USE_FAST_MEMORY
 #ifdef USE_FAST_MEMORY
 // When we set up our memory map, use these
 #  define FAST_BSS __attribute((section(".fast_bss")))
@@ -36,7 +37,7 @@
 #  define FAST_DATA
 #endif
 
-#define SOFTWARE_VERSION "18"
+#define SOFTWARE_VERSION "19"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
