@@ -31,8 +31,11 @@
 **
 ******************************************************************************
 **
-** Modifications by Douglas P. Fields, Jr. 2025-01-20,
+** Modifications by Douglas P. Fields, Jr. 2025-01-25,
 ** available under Apache 2.0 license - see README.md file.
+** 
+** TODO:
+** * Set up DMARAM sections for data and BSS
 */
 
 /**

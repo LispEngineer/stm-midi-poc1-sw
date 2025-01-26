@@ -34,6 +34,7 @@
   *
   * TODO:
   * * Initialize FASTRAM data & BSS
+  * * Initialize DMARAM data & BSS
   */
 
     
