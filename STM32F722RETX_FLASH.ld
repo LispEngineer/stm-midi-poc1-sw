@@ -31,11 +31,11 @@
 **
 ******************************************************************************
 **
-** Modifications by Douglas P. Fields, Jr. 2025-01-25,
+** Modifications by Douglas P. Fields, Jr. 2025-01-26,
 ** available under Apache 2.0 license - see README.md file.
 ** 
-** TODO:
-** * Set up DMARAM sections for data and BSS
+** * Set up FASTRAM sections for data and BSS - DTCM
+** * Set up DMARAM sections for data and BSS - non-D-cached RAM
 */
 
 /**

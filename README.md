@@ -3,12 +3,13 @@
 * Author: [Douglas P. Fields, Jr.](mailto:symbolics@lisp.engineer)
 * Copyright 2024, Douglas P. Fields Jr.
 * License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt)
-* Last updated: 2024-11-10
+* Last updated: 2025-01-26
 * [Repo Self-Link](https://github.com/LispEngineer/stm-midi-poc1-sw)
 * Portions used under other licenses
   * SPI Display - MIT License
   * STM Software / Generated Code - Delegated to LICENSE file, hence
     Apache 2.0
+  * Memory allocator - Public Domain (memmgr.c/h)
 
 Software for my 
 [STM32 MIDI Synthesizer PoC 1](https://github.com/LispEngineer/stm-midi-poc1).
@@ -182,6 +183,9 @@ Empirical results: (Debug mode)
   but no special code for DMA management
   due to using only 64kB DTCM
   * Main loops per millisecond: 243-260
+* Current configuration, with DTCM, non-cached DMA RAM, and regular RAM,
+  using the MPU to set the cache policy per memory area
+  * Main loops per millisecond: 229-244
 
 Conclusion:
 * As far as I can tell, the I-Cache enabled, D-Cache disabled
@@ -190,15 +194,11 @@ Conclusion:
 * The D-Cache enabled adds another 20-25% performance at seemingly
   no cost.
 
-MPU:
-* Disabling the MPU seems to make no difference to performance.
-* Not sure why the MPU was enabled by default.
-  
 Note:
 * ART accelerator is for accessing Flash through TCM
   * Prefetch is for using Flash through TCM
 * I-cache is for accessing Flash through AXI
-* I don't think there is any benefit for enabling both
+* I don't think there is any benefit for enabling both - I think only one is used at a time
 * By default STM32Cube sets things up for AXI Flash
 * "The L1-cache can be a performance booster when used in conjunction with memory interfaces on AXI bus. This must not be confused with memories on the Tightly Couple Memory (TCM) interface, which are not cacheable."
   * AN4839 Rev 2 page 4
@@ -211,31 +211,18 @@ Note:
 * Make all DMA memory reads and writes volatile
   so the compiler doesn't optimize them and forces
   a read from RAM (or Cache)
-* With appropriate #ifdefs, add cache invalidation
-  for all DMA memory reads and writes (and ensure
-  the compiler thinks the memory is volatile).
-  * Alternatively, set up a memory region that the
-    MPU has marked non-cacheable for DMA. Do all DMA
-    from there. This may necessitate:
-    * 1. BSS allocation
-    * 2. data allocation (initialized variables)
-    * 3. Special heap with dynamic memory allocator
-      since I dynamically allocate SPI DMA transmit
-      buffers (e.g., [this one](https://github.com/embeddedartistry/libmemory))
+* ALMOST DONE: Set up a memory region that the
+  MPU has marked non-cacheable for DMA. Do all DMA
+  from there. This may necessitate:
+  * 1. BSS allocation
+  * 2. data allocation (initialized variables)
+  * TODO STILL 3. Special heap with dynamic memory allocator
+    since I dynamically allocate SPI DMA transmit
+    buffers (e.g., [this one](https://github.com/embeddedartistry/libmemory))
 * Analyze the allocations of `malloc()` in my application;
   they are all currently in `spidma_ili9341.c` and the corresponding
   `free()` are in `spidma.c`   
-    
 
-* TODO Transfer the memory map over for all the 
-  different memory areas
-  * And the BSS/Data section initializers
-  
-* Enable performance increasing settings
-  * ART accelerator (Flash read cache)
-  * CPU I-cache
-  * CPU D-cache - but not for DMA memory, put that in D-TCM
-    * Set up the MPU with appropriate regions for the D-cache
 
 ## DONE
 

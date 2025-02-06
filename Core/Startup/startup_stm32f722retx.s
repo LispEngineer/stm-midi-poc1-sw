@@ -25,15 +25,13 @@
   */
 
  /*
-  *  Updated on: 2025-01-25
+  *  Updated on: 2025-01-26
   *      Author: Douglas P. Fields, Jr.
   *   Copyright: 2025, Douglas P. Fields, Jr.
   *     License: Apache 2.0
   *
   * Updated as follows:
   * * Initialize FASTRAM data & BSS
-  *
-  * TODO:
   * * Initialize DMARAM data & BSS
   */
 
