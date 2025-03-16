@@ -3,7 +3,7 @@
 * Author: [Douglas P. Fields, Jr.](mailto:symbolics@lisp.engineer)
 * Copyright 2024, Douglas P. Fields Jr.
 * License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt)
-* Last updated: 2025-01-26
+* Last updated: 2025-03-16
 * [Repo Self-Link](https://github.com/LispEngineer/stm-midi-poc1-sw)
 * Portions used under other licenses
   * SPI Display - MIT License
@@ -150,10 +150,17 @@ The software is adapted from my project
 this functionality:
 
 * Decode incoming MIDI
-* Create a single triangle wave tone based on last note on
-  received
-* Output the tone to the Audio DAC used in this board
+* Synth:
+  * Triangle-wave only
+  * Velocity sensitive
+  * N note polyphony (set by `#define SYNTH_POLYPHONY`)
+  * Mixing is by clipping
+  * 32,000 Hz, 16-bit resolution
+* Output the mixed synth tone to the Audio DAC used in this board
 * Display on the PJRC ILI9341 SPI display
+* Display stuff on the serial UART at 460,800 8-N-1
+* Send MIDI
+* Mute and change the gain of the headphone amplifier
 
 ## Sizes
 
@@ -222,7 +229,13 @@ Note:
 * Analyze the allocations of `malloc()` in my application;
   they are all currently in `spidma_ili9341.c` and the corresponding
   `free()` are in `spidma.c`   
-
+* Figure out how to tell if we're sending left or right channel
+  on I2S and when we're sending that channel.
+  * Then prove it by sending different sounds to the left and the
+    right
+* Move to an RTOS
+  * FreeRTOS is built into STM32 tooling
+  * Zephyr
 
 ## DONE
 
@@ -323,14 +336,14 @@ Note one board is missing J5 so easy to differentiate.
 ## Tests remaining
 
 * I2C
-* SPI
 * GPIO
 * The other serial ports
   * Test MIDI with a `ubld.it` MIDI breakout
   * USART6 RX has been tested
 * RTC
-* Master clock output
+* Master clock output (removed in EVT2)
 * Wakeup
+* USB
 
 ## P0
 
@@ -371,13 +384,15 @@ It does not show any MIDI overrun errors.
 Currently a complete mystery why this is happening.
 
 Seems like it's getting some error condition as these make it work again:
+```
   LL_USART_ClearFlag_LBD(MIDI1_UART);
   LL_USART_ClearFlag_PE(MIDI1_UART);
   LL_USART_ClearFlag_NE(MIDI1_UART);
   LL_USART_ClearFlag_ORE(MIDI1_UART);
   LL_USART_ClearFlag_IDLE(MIDI1_UART);
+```  
 
-Looks like it's getting an ORE.
+Looks like it's getting an ORE (overrun exception).
 
 The fix: Move to interrupt-driven receiving.
 
@@ -396,3 +411,24 @@ have helped quite a bit.
 
 Interestingly, if I send a BREAK using Putty over the serial
 console at 460,800 bps, it resets the Microcontroller!
+
+# EVT2 Hardware Problems Noted
+
+None serious so far!
+
+Things to check:
+* Line out
+
+Things to test:
+* I2C
+* GPIO
+* RTC
+* Wakeup
+* USB
+* The other serial ports (than MIDI 1/2 and console)
+
+Some thoughts:
+* Muting & unmuting makes an audible click.
+  * Maybe change the DAC mute and the headphone amplifier mute to
+    be on different signals and see which one is the problem?
+* MIDI in/out are working properly

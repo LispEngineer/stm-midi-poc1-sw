@@ -5,7 +5,7 @@
  * auto-generated.
  *
  *  Created on: 2024-08-25
- *  Updated on: 2025-01-26
+ *  Updated on: 2025-03-16
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024-2025, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -21,11 +21,11 @@
 #include "realmain.h"
 #include "ringbuffer.h"
 #include "midi.h"
-#include "tonegen.h"
 #include "spidma.h"
 #include "spidma_ili9341.h"
 #include "fonts.h"
 #include "usartdma.h"
+#include "synth.h"
 
 #define SOFTWARE_VERSION "20"
 
@@ -35,7 +35,7 @@
                      "\t6.   Counters\r\n" \
                      "\t7.   SPI info\r\n" \
                      "\tqw.  Pause/start I2S\r\n" \
-                     "\ter.  Start/stop tone\r\n" \
+                     "\ter.  Start/stop a note\r\n" \
                      "\tdf.  Send note on/off\r\n" \
                      "\ta.   Audio mute\r\n" \
                      "\tg/G. Gain 0/1\r\n" \
@@ -126,9 +126,6 @@ FAST_DATA size_t tfs_len = sizeof(test_fast_string) - 1;
 // Test DMA Data
 DMA_DATA char test_dma_string[] = "DMA STR";
 DMA_DATA size_t tds_len = sizeof(test_dma_string) - 1;
-
-// Tone Generator
-FAST_BSS tonegen_state tonegen1;
 
 // Display controller (SPI & DMA & GPIO)
 FAST_BSS spidma_config_t spi_config;
@@ -370,6 +367,7 @@ uint8_t process_user_input(uint8_t opt) {
   }
 
   char msg[100];
+  midi_message mm;
 
   serial_transmit(&opt, 1);
 
@@ -415,12 +413,18 @@ uint8_t process_user_input(uint8_t opt) {
     HAL_I2S_DMAResume(&SOUND1);
     break;
   case 'e':
-    // Start a tone
-    tonegen_set(&tonegen1, 262, 25000);
+    // Start a note
+    mm.type = MIDI_NOTE_ON;
+    mm.note = 64;
+    mm.velocity = 80;
+    synth_process_midi(&mm);
     break;
   case 'r':
-    // Stop tone
-    tonegen_set(&tonegen1, 262, 0);
+    // Stop that same note
+    mm.type = MIDI_NOTE_OFF;
+    mm.note = 64;
+    mm.velocity = 77;
+    synth_process_midi(&mm);
     break;
   case 'd':
     // Send note on
@@ -495,12 +499,8 @@ void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
  * amount of stuff to do.
  */
 void fill_i2s_data() {
-  int16_t *next_sample_loc = (int16_t *)i2s_buff_write; // Remove volatility
-
-  for (int i = 0; i < I2S_BUFFER_SIZE / 2; i++) {
-    *next_sample_loc = tonegen_next_sample(&tonegen1);
-    next_sample_loc++;
-  }
+  // Cast to remove volatility
+  synth_fill((int16_t *)i2s_buff_write, I2S_BUFFER_SIZE / 2);
 
   // TODO: Deal with race condition - what if the buffer empties
   // while we're doing this? Should we set the flag to 0 at the
@@ -509,9 +509,6 @@ void fill_i2s_data() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-// When > 127, no current note
-static uint8_t current_midi_note;
 
 /** Reads any pending MIDI inputs.
  *
@@ -535,17 +532,7 @@ void check_midi_synth() {
     if (midi_stream_receive(&midi_stream_0, midi_in, &mm)) {
       // Received a full MIDI message
 
-      // Update our notes playing
-      if ((mm.type & 0xF0) == MIDI_NOTE_ON) {
-        current_midi_note = mm.note;
-        if (current_midi_note > 127) current_midi_note = 127;
-        // TODO: Set amplitude by velocity
-        tonegen_set(&tonegen1, midi_note_freqX100[current_midi_note] / 100, mm.velocity * 250);
-      } else if ((mm.type & 0xF0) == MIDI_NOTE_OFF) {
-        if (current_midi_note == mm.note) {
-          tonegen_set(&tonegen1, tonegen1.desired_freq, 0);
-        }
-      }
+      synth_process_midi(&mm);
 
       if (mm.type != 0xF8 && mm.type != 0xFE) {
         // And show what we received if it's not a clock message or Active Sensing message
@@ -704,8 +691,7 @@ void realmain() {
 
   init_usart_dma_io();
   init_midi_buffers();
-  tonegen_init(&tonegen1, 32000);
-  tonegen_set(&tonegen1, 1024, 0); // Frequency, Amplitude
+  synth_init(32000); // FIXME: Magic number
 
   // Start our USART receiving and error interrupts
   LL_USART_EnableIT_RXNE(MIDI1_UART);
