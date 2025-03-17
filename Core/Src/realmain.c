@@ -5,7 +5,7 @@
  * auto-generated.
  *
  *  Created on: 2024-08-25
- *  Updated on: 2025-03-16
+ *  Updated on: 2025-03-17
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2024-2025, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -27,7 +27,7 @@
 #include "usartdma.h"
 #include "synth.h"
 
-#define SOFTWARE_VERSION "20"
+#define SOFTWARE_VERSION "21"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \

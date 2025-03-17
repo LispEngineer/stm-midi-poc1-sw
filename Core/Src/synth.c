@@ -4,7 +4,7 @@
  * Simple polyphonic synthesizer from scratch.
  *
  *  Created on: 2025-03-16
- *  Updated on: 2025-03-16
+ *  Updated on: 2025-03-17
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2025, Douglas P. Fields, Jr.
  *     License: Apache 2.0
@@ -73,8 +73,10 @@ void synth_process_midi(midi_message *mm) {
       // Velocity is 0-127 (0 being off), so 127 * 250 = 31,750,
       // which is below 32,767, our max 16-bit integer.
       // We may want to allow a little bit more headroom by multiplying by less than 250.
+      // After some experiments, multiplying by 64 seems to be a okay, at least for notes at
+      // velocity 30.
       // FIXME: Magic numbers
-      tonegen_set(&voices[v].tonegen, midi_note_freqX100[mm->note] / 100, mm->velocity * 250);
+      tonegen_set(&voices[v].tonegen, midi_note_freqX100[mm->note] / 100, mm->velocity * 64);
       voices[v].state = voice_on;
       voices[v].note = mm->note;
     }
