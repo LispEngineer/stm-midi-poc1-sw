@@ -208,7 +208,6 @@ void DMA1_Stream1_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Stream1_IRQn 0 */
   // USART3 RX
   /* USER CODE END DMA1_Stream1_IRQn 0 */
-
   /* USER CODE BEGIN DMA1_Stream1_IRQn 1 */
 
   /* USER CODE END DMA1_Stream1_IRQn 1 */
@@ -223,7 +222,6 @@ void DMA1_Stream3_IRQHandler(void)
   // Per configuration (.ioc file), this is USART 3 RX
   usart_dma_transfer_complete(USART3);
   /* USER CODE END DMA1_Stream3_IRQn 0 */
-
   /* USER CODE BEGIN DMA1_Stream3_IRQn 1 */
 
   /* USER CODE END DMA1_Stream3_IRQn 1 */
@@ -259,7 +257,6 @@ void DMA1_Stream5_IRQHandler(void)
   }
   */
   /* USER CODE END DMA1_Stream5_IRQn 0 */
-
   /* USER CODE BEGIN DMA1_Stream5_IRQn 1 */
 
   /* USER CODE END DMA1_Stream5_IRQn 1 */
@@ -280,7 +277,6 @@ void DMA1_Stream6_IRQHandler(void)
     LL_DMA_ClearFlag_TE6(DMA1);
   }
   /* USER CODE END DMA1_Stream6_IRQn 0 */
-
   /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
 
   /* USER CODE END DMA1_Stream6_IRQn 1 */
@@ -334,7 +330,6 @@ void DMA2_Stream1_IRQHandler(void)
   /* USER CODE BEGIN DMA2_Stream1_IRQn 0 */
   // USART6 RX
   /* USER CODE END DMA2_Stream1_IRQn 0 */
-
   /* USER CODE BEGIN DMA2_Stream1_IRQn 1 */
 
   /* USER CODE END DMA2_Stream1_IRQn 1 */
@@ -348,7 +343,6 @@ void DMA2_Stream2_IRQHandler(void)
   /* USER CODE BEGIN DMA2_Stream2_IRQn 0 */
   // USART1 RX
   /* USER CODE END DMA2_Stream2_IRQn 0 */
-
   /* USER CODE BEGIN DMA2_Stream2_IRQn 1 */
 
   /* USER CODE END DMA2_Stream2_IRQn 1 */
@@ -383,7 +377,6 @@ void DMA2_Stream6_IRQHandler(void)
     LL_DMA_ClearFlag_TE6(DMA2);
   }
   /* USER CODE END DMA2_Stream6_IRQn 0 */
-
   /* USER CODE BEGIN DMA2_Stream6_IRQn 1 */
 
   /* USER CODE END DMA2_Stream6_IRQn 1 */
@@ -404,7 +397,6 @@ void DMA2_Stream7_IRQHandler(void)
     LL_DMA_ClearFlag_TE7(DMA2);
   }
   /* USER CODE END DMA2_Stream7_IRQn 0 */
-
   /* USER CODE BEGIN DMA2_Stream7_IRQn 1 */
 
   /* USER CODE END DMA2_Stream7_IRQn 1 */
