@@ -10,7 +10,9 @@
   * STM Software / Generated Code - Delegated to LICENSE file, hence
     Apache 2.0
   * Memory allocator - Public Domain (memmgr.c/h)
-
+  * [FreeRTOS](https://freertos.org/Documentation/02-Kernel/01-About-the-FreeRTOS-kernel/04-Licensing) - 
+    MIT License
+    
 Software for my 
 [STM32 MIDI Synthesizer PoC 1](https://github.com/LispEngineer/stm-midi-poc1).
 
@@ -20,14 +22,22 @@ Software for my
 * [SPI Display Software](https://github.com/afiskon/stm32-ili9341) 
   by Aleksander Alekseev under [MIT License](https://opensource.org/license/mit)
   * As enhanced by [my project](https://github.com/LispEngineer/stm-f7-spi-display)
+* [FreeRTOS](https://freertos.org/) under MIT License currently maintained by
+  Amazon / AWS
+* [Memory Allocator](https://github.com/eliben/code-for-blog/tree/main/2008/memmgr)
+  by [Eli Bendersky](mailto:eliben@gmail.com) under the Public Domain
 
 
 # Software
 
 * Windows 11
 * STM32CubeIDE
-* STM32 HAL libraries
+* STM32 HAL and LL libraries
 * FreeRTOS
+* Segger
+  * Ozone
+  * SystemView
+* git
 
 # Hardware
 
@@ -38,16 +48,24 @@ Software for my
   * [STM32F722 Data Sheet](https://www.st.com/resource/en/datasheet/stm32f722ic.pdf)
     * DS11853 Rev 9 July 2022 as of this writing
   * Package: LQFP-64
-  * Core: ARM Cortex-M7
+  * Core: ARM Cortex-M7 (revision r1p1)
 * Audio DAC with headphone amplifier
-  * DAC: [PCM5102A](TODO)
-  * Amplifier: [PAM8908JER](TODO)
+  * DAC: [PCM5102A](https://www.ti.com/product/PCM5102A)
+    * (Future: Check out the [TAD5242](https://www.ti.com/product/TAD5242)
+  * Amplifier: [PAM8908JER](https://www.diodes.com/part/view/PAM8908/)
 * MIDI in/out
   * Opto-isolator: 
-    * EVT1: [6N137S-TA1](TODO)
-    * EVT2: [TLP2362](TODO) - much smaller
+    * EVT1: 6N137S-TA1
+    * EVT2: [TLP2362](https://toshiba.semicon-storage.com/us/semiconductor/product/isolators-solid-state-relays/detail.TLP2362.html)
+      * much smaller chip
 * Power: USB-C
 * Programming: SWD (with 5-pin header, no SWO)
+  * ST-Link v3: SWD & UART (USART2 console)
+    * [STLINK-V3SET](https://www.st.com/en/development-tools/stlink-v3set.html)
+  * Segger J-Link (Plus v10, EDU Mini)
+    * EDU model does not have VCOM (console)
+    * VCOM seems to work only at 115,200 bps
+      * TODO: Figure out why
 
 Key STM32F722 Manuals:
 * Data sheet - DS11853 Rev 9
@@ -58,11 +76,18 @@ Key STM32F722 Manuals:
 * L1 Cache - AN4839 Rev 2
 * STM32F7 HAL and LL - UM1905 Rev 5
 * STM32CubeMX - UM1718
+* r1p1 "[suffers from erratum 1259864](https://forums.freertos.org/t/arm-cortex-m7-fault-exception-and-stack-corruption/17700/10)"
+  * "you can’t safely use write-through caching"
+* [Cortex-M7 Manual Revisions](https://developer.arm.com/documentation/ddi0489/f/revisions)
+* [STM32F722 Errata](https://www.st.com/resource/en/errata_sheet/es0360-stm32f72xxx-and-stm32f73xxx-device-limitations-stmicroelectronics.pdf)
+  * See section 2.1.1 for Erratum 1259864
+* [Arm Errata for Cortex-M7](https://documentation-service.arm.com/static/665dff778ad83c4754308908?token=)
+  * Category A = No Workaround
+  * Fixed in version `r1p2`
+
 
 External hardware:
-* ST-Link v3: SWD & UART (USART2 console)
-  * [STLINK-V3SET](https://www.st.com/en/development-tools/stlink-v3set.html)
-* USB Console: Inland FT232 TTL UART to USB board (when not using ST-Link)
+* USB Console: Inland FT232 TTL UART to USB board (when not using ST-Link or J-Link VCOM)
   * [Similar to this one](https://www.ebay.com/itm/142909573493)
 * SPI Display: [PJRC ILI9341](https://www.pjrc.com/store/display_ili9341_touch.html)
 
@@ -74,6 +99,7 @@ External hardware:
 * [GNU Tools for STM32 12.3.rel1](https://github.com/STMicroelectronics/gnu-tools-for-stm32)
 	* [ARM NewLib](https://github.com/STMicroelectronics/gnu-tools-for-stm32/tree/12.3.rel1/src/newlib/newlib) 4.2.0
 	  * [NEWS file](https://sourceware.org/git/?p=newlib-cygwin.git;a=blob;f=newlib/NEWS;h=ce4391367b5d6c6aed58cc5b7ad531420f2c9d51;hb=HEAD)
+
 
 # Pinout
 
