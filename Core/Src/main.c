@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "realmain.h"
+#include "frmain.h"
 #include "spimain.h"
 #include "spidma.h"
 
@@ -170,6 +171,7 @@ int main(void)
   uartrxdmamain();
 #endif
 
+  frmain(); // FreeRTOS version (does not return)
   realmain(); // Leave pre-generated code and move to DPF's code
 
   while (1)
