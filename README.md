@@ -27,7 +27,7 @@ Software for my
 * Windows 11
 * STM32CubeIDE
 * STM32 HAL libraries
-
+* FreeRTOS
 
 # Hardware
 
@@ -440,3 +440,70 @@ Some thoughts:
   * Maybe change the DAC mute and the headphone amplifier mute to
     be on different signals and see which one is the problem?
 * MIDI in/out are working properly
+
+
+# FreeRTOS
+
+I am transplanting in FreeRTOS and then will migrate all the
+current functionality to work nicely in a FreeRTOS manner.
+
+* [Template Project](https://github.com/LispEngineer/midi-freertos-jlink)
+
+Note that I use the Segger J-Link because of the availability of the
+Ozone debugger and SystemView RTOS tool, free for non-commercial use. 
+I have a new EDU Mini and a second-hand Plus v10.
+
+Steps:
+
+1. Copy files:
+  * The `ThirdParty` directory from the Template
+  * The `FreeRTOSConfig.h` include file in `Core/Inc`
+2. `ThirdParty` Properties -> C/C++ Build -> Exclude from Build -> *unchecked*
+3. Set up Include paths
+  * In the IDE, Project -> Properties
+  * C/C++ Build -> Settings -> Tool Settings -> MCU/MPU GCC Compiler -> Include Paths
+  * Add these: `Workspace` -> `ThirdParty/`
+    * `FreeRTOS-Kernel/include`
+    * `FreeRTOS-Kernel/portable/GCC/ARM_CM7/r0p1`
+    * `SystemView`
+    * `SystemView/Config`
+    
+Check: The project should build cleanly now. (Not much of a check.)
+
+4. Update the `.ioc` file in several sections
+  * Remove handlers that are provided by `port.c`
+    * They are: `SVC_Handler`, `PendSV_Handler`, and `SysTick_Handler`
+    * Open System Core -> NVIC
+    * Open Code Generation under Configuration
+    * In the `Generate IRQ handler` column, uncheck these rows:
+      * Pendable request for system service
+      * Time base: System tick timer
+      * System service call via SWI instruction
+  * Update the STM32 HAL timebase
+    * System Core -> SYS
+    * Ensure the "Mode" pane can be seen; maybe pull down the "Configuration" pane
+    * Change `Timebase Source` from `SysTick` to `TIM6`
+  * Update NVIC priority/sub-priority sizes from "3 bits for pre-emption priority,
+    1 bits for subpriority"
+    * (Not yet sure why we do this, it is how the example FreeRTOS was set up)
+    * System Core -> NVIC
+    * Configuration pane, NVIC tab
+    * Priority Group = "4 bits for pre-emption priority 0 bits for subpriority"
+      * (This was already set)
+    * Update priorities: (all sub-priorities become 0)
+      * These DMA interrupts should go to 2:
+        * DMA1, streams 1,3,5,6
+        * DMA2, streams 1,2
+      * 3: 
+        * DMA1 stream4
+        * SPI2 global interrupt (maybe move this to 4)
+      * 4: UART4 global interrupt (not used)
+      * 5: UART5 global interrupt (not used)
+      * 15:
+        * System tick timer
+        * Time base: TIM6 global interrupt, DAC1 and DAC2 underrun error interrupts
+      * TODO: Revisit all these priorities later
+  * Save the `.ioc` and regenerate the code
+
+Check: The project still builds, and it should work the same way as always.
+(Increment the version number to check the new code is in use.)

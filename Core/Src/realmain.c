@@ -27,7 +27,7 @@
 #include "usartdma.h"
 #include "synth.h"
 
-#define SOFTWARE_VERSION "21"
+#define SOFTWARE_VERSION "22"
 
 #define WELCOME_MSG "Doug's MIDI v" SOFTWARE_VERSION "\r\n"
 #define MAIN_MENU   "\t123. Toggle R/G/B LED\r\n" \
