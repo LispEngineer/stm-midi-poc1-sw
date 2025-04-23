@@ -235,11 +235,15 @@ Note:
     right
 * Move to an RTOS
   * FreeRTOS is built into STM32 tooling
+    * I also got it running stand-alone on the STM32F722 chip!
   * Azure RTOS (formerly ThreadX) 
     * [Tutorial](https://wiki.st.com/stm32mcu/wiki/Introduction_to_Azure_RTOS_with_STM32)
     * [STM32Cube integration](https://www.st.com/content/st_com/en/campaigns/x-cube-azrtos-azure-rtos-stm32.html)
     * [STM32F7 integration](https://github.com/STMicroelectronics/x-cube-azrtos-f7)
   * Zephyr
+* Use Segger RTT instead of console UART?
+  * `C:\Program Files\SEGGER\JLink_V826\Samples\RTT` has the code
+    `SEGGER_RTT_V826.zip`
 
 ## DONE
 
