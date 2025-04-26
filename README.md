@@ -558,3 +558,5 @@ Check: The project still builds, and it should work the same way as always.
    So, basically, pause a task until the DMA transmit is done.
    Then pause it until there is something to write.
    
+See [FreeRTOS example](https://github.com/FreeRTOS/iot-reference-stm32u5/blob/main/Common/cli/cli_uart_drv.c#L150).
+   
