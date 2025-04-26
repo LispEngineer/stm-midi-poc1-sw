@@ -1,0 +1,16 @@
+
+
+OpenDocument="startup_stm32f722retx.s", FilePath="C:/Users/Doug/OneDrive/src/stm-midi-poc1-sw/Core/Startup/startup_stm32f722retx.s", Line=71
+OpenDocument="tasks.c", FilePath="C:/Users/Doug/OneDrive/src/stm-midi-poc1-sw/ThirdParty/FreeRTOS-Kernel/tasks.c", Line=5773
+OpenDocument="main.c", FilePath="C:/Users/Doug/OneDrive/src/stm-midi-poc1-sw/Core/Src/main.c", Line=98
+OpenToolbar="Debug", Floating=0, x=0, y=0
+OpenWindow="Registers 1", DockArea=RIGHT, x=0, y=0, w=300, h=861, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, FilteredItems=[], RefreshRate=1
+OpenWindow="Memory 1", DockArea=BOTTOM, x=1, y=0, w=850, h=326, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x0
+OpenWindow="Functions", DockArea=LEFT, x=0, y=0, w=300, h=861, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=865, h=326, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
+TableHeader="Functions", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Address";"Size";"#Insts";"Source"], ColWidths=[1435;100;100;100;280]
+TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
+TableHeader="Registers 1", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Description"], ColWidths=[100;118;105]
+TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
+TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[26;26;26;37]

@@ -30,6 +30,10 @@
  * Douglas P. Fields, Jr.
  * symbolics@lisp.engineer
  * 2025-03-25
+ * These changes Copyright 2025 Douglas P. Fields, Jr.
+ * Covered under Apache 2.0 license
+ *
+ * See: https://www.freertos.org/Documentation/02-Kernel/03-Supported-devices/02-Customization#configmax_priorities
  */
 
 
@@ -55,7 +59,7 @@
 #define configUSE_TICK_HOOK                     0
 #define configCPU_CLOCK_HZ                      ( SystemCoreClock )
 #define configTICK_RATE_HZ                      ( 1000 )
-#define configMAX_PRIORITIES                    ( 5 )
+#define configMAX_PRIORITIES                    ( 16 )
 #define configMINIMAL_STACK_SIZE                ( ( unsigned short ) 130 )
 #define configTOTAL_HEAP_SIZE                   ( ( size_t ) ( 46 * 1024 ) )
 #define configMAX_TASK_NAME_LEN                 ( 10 )

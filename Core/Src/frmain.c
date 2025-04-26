@@ -13,6 +13,7 @@
 
 
 #include "main.h"
+#include "realmain.h"
 
 // FreeRTOS includes
 #include "FreeRTOS.h"
@@ -35,24 +36,70 @@ void blink_red(void *param) {
   }
 }
 
+void task_check_serial_io(void *param) {
+  while (1) {
+    check_io();
+    vTaskDelay(1);
+  }
+}
+
+void task_send_serial_data(void *param) {
+  char msg[] = "Hello, world!\r\n\r\n";
+
+  while (1) {
+    serial_transmit((uint8_t *)msg, sizeof(msg));
+    vTaskDelay(997);
+  }
+}
+
 
 void frmain() {
   TaskHandle_t blink_green_task;
   TaskHandle_t blink_red_task;
+  TaskHandle_t check_serial_io;
+  TaskHandle_t send_serial_data;
 
   BaseType_t status;
+
+  //////////////////////////////////////////////////////////////////
+  // UART handler initialization
+
+  init_usart_dma_io();
+
+  // Start our USART receiving and error interrupts
+  // TODO: This probably is not necessary anymore
+  LL_USART_EnableIT_RXNE(MIDI1_UART);
+  LL_USART_EnableIT_RXNE(CONSOLE_UART);
+  LL_USART_EnableIT_ERROR(MIDI1_UART);
+  LL_USART_EnableIT_ERROR(CONSOLE_UART);
+
+
+  //////////////////////////////////////////////////////////////////
+  // Debugger Initialization
 
   // Enable Segger SystemView
   traceSTART();
 
+  //////////////////////////////////////////////////////////////////
+  // Initial tasks
+
   // Create a test task that blinks a different LED than LD1
-  status = xTaskCreate(blink_green, "Bl-Grn", 200, NULL, 2, &blink_green_task);
+  status = xTaskCreate(blink_green, "Bl-Grn", 200, NULL, 5, &blink_green_task);
   configASSERT(status == pdPASS);
 
-  status = xTaskCreate(blink_red, "Bl-Red", 200, NULL, 2, &blink_red_task);
+  status = xTaskCreate(blink_red, "Bl-Red", 200, NULL, 5, &blink_red_task);
   configASSERT(status == pdPASS);
 
+  // Serial testing tasks
+  status = xTaskCreate(task_check_serial_io, "UART-IO", 200, NULL, 2, &check_serial_io);
+  configASSERT(status == pdPASS);
+
+  status = xTaskCreate(task_send_serial_data, "UART-Send", 200, NULL, 8, &send_serial_data);
+  configASSERT(status == pdPASS);
+
+  //////////////////////////////////////////////////////////////////
   // Start FreeRTOS
+
   // This should never return unless there is a problem
   vTaskStartScheduler();
 

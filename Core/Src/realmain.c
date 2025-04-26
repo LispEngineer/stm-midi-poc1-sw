@@ -49,34 +49,6 @@
 #define NOTE_OFF_START "\x80\x3C\x40"
 #define NOTE_OFF_START_LEN 3
 
-// This is using LL API
-#if 1
-#define MIDI1_UART          USART1 // Low level USART - HAL would be huartN
-#define MIDI1_DMA_RX        DMA2
-#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_2
-#define MIDI1_DMA_TX        DMA2
-#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_7
-#elif 0
-#define MIDI1_UART          USART3 // Low level USART - HAL would be huartN
-#define MIDI1_DMA_RX        DMA1
-#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_1
-#define MIDI1_DMA_TX        DMA1
-#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_3
-#else
-#define MIDI1_UART          USART6 // Low level USART - HAL would be huartN
-#define MIDI1_DMA_RX        DMA2
-#define MIDI1_DMA_RX_STREAM LL_DMA_STREAM_1
-#define MIDI1_DMA_TX        DMA2
-#define MIDI1_DMA_TX_STREAM LL_DMA_STREAM_6
-#endif
-
-// This is using LL API
-#define CONSOLE_UART          USART2 // Low level USART - HAL would be huart2
-#define CONSOLE_DMA_RX        DMA1
-#define CONSOLE_DMA_TX        DMA1
-#define CONSOLE_DMA_RX_STREAM LL_DMA_STREAM_5
-#define CONSOLE_DMA_TX_STREAM LL_DMA_STREAM_6
-
 // This is using HAL API
 #define I2S_BUFFER_SIZE 256
 #define SOUND1          hi2s1
@@ -179,7 +151,7 @@ void init_midi_buffers() {
 /** Queues data to be sent over our serial output.
  * Returns # of bytes queued to send.
  */
-static inline size_t serial_transmit(const uint8_t *msg, uint16_t size) {
+size_t serial_transmit(const uint8_t *msg, uint16_t size) {
   // TODO: Check for send buffer overflow - if sent < size
   size_t sent = udcr_queue_bytes(&console_io, msg, size);
   return sent;
@@ -199,7 +171,7 @@ void check_io() {
 
 /** Queues data to be sent over our MIDI output.
  * Returns bytes queued. */
-static inline size_t midi_transmit(const uint8_t *msg, uint16_t size) {
+size_t midi_transmit(const uint8_t *msg, uint16_t size) {
   // TODO: Check for send buffer overflow
   return udcr_queue_bytes(&midi1_io, msg, size);
 }
@@ -207,7 +179,7 @@ static inline size_t midi_transmit(const uint8_t *msg, uint16_t size) {
 /** Returns >= 256 if there is nothing to be read;
  * otherwise returns a uint8_t of what is next to be read.
  */
-static inline uint16_t serial_read() {
+uint16_t serial_read() {
   return udcr_read_byte(&console_io);
 }
 
