@@ -533,3 +533,28 @@ Check: The project should build cleanly now. (Not much of a check.)
 
 Check: The project still builds, and it should work the same way as always.
 (Increment the version number to check the new code is in use.)
+
+## FreeRTOS Status
+
+1. The simple blinky works
+2. UART I/O using a dumb conversion of my old SuperLoop code
+   to FreeRTOS works
+
+## FreeRTOS TO DO
+
+### UART rewrite
+
+1. Make received data only get read when an interrupt
+   shows it has been read. However, still use DMA to
+   copy that so if we don't read it quickly it will be
+   able to see all data.
+   
+2. Protect all the serial writes so that if we are writing
+   from multiple tasks, only one can be writing at a time.
+   Or, alternatively, the tasks can (accidentally/intentionally)
+   interleave their writes but the writer won't get messed up.
+   
+3. Make written data only poll when the DMA transmit is empty.
+   So, basically, pause a task until the DMA transmit is done.
+   Then pause it until there is something to write.
+   

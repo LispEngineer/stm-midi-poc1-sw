@@ -5,12 +5,13 @@
  * of this project.
  *
  *  Created on: 2025-04-22
- *  Updated on: 2025-04-22
+ *  Updated on: 2025-04-25
  *      Author: Douglas P. Fields, Jr.
  *   Copyright: 2025, Douglas P. Fields, Jr.
  *     License: Apache 2.0
  */
 
+#include <stdio.h>
 
 #include "main.h"
 #include "realmain.h"
@@ -52,12 +53,32 @@ void task_send_serial_data(void *param) {
   }
 }
 
+void task_read_serial_data(void *param) {
+  char msg[50];
+  uint16_t c;
+  int len;
+
+  while (1) {
+    c = serial_read();
+
+    // No character waiting for input
+    if (c >= 0x100) {
+      vTaskDelay(1);
+      continue;
+    }
+
+    len = snprintf(msg, sizeof(msg), "You typed: %02X\r\n\r\n", (int)c);
+    serial_transmit((uint8_t *)msg, len);
+  }
+}
+
 
 void frmain() {
   TaskHandle_t blink_green_task;
   TaskHandle_t blink_red_task;
   TaskHandle_t check_serial_io;
   TaskHandle_t send_serial_data;
+  TaskHandle_t read_serial_data;
 
   BaseType_t status;
 
@@ -95,6 +116,9 @@ void frmain() {
   configASSERT(status == pdPASS);
 
   status = xTaskCreate(task_send_serial_data, "UART-Send", 200, NULL, 8, &send_serial_data);
+  configASSERT(status == pdPASS);
+
+  status = xTaskCreate(task_read_serial_data, "UART-Read", 200, NULL, 3, &read_serial_data);
   configASSERT(status == pdPASS);
 
   //////////////////////////////////////////////////////////////////
