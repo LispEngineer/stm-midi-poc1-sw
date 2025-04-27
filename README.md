@@ -560,3 +560,20 @@ Check: The project still builds, and it should work the same way as always.
    
 See [FreeRTOS example](https://github.com/FreeRTOS/iot-reference-stm32u5/blob/main/Common/cli/cli_uart_drv.c#L150).
    
+
+# USB
+
+Taking a side track to USB, as I will want to support USB
+MIDI in the future. For now, let's explore USB Device mode.
+
+TODO: First note: I have a physical pull-up resistor on
+the USB D+ line (1.5k). Apparently, this is not needed;
+[see Gemini's thoughts](https://g.co/gemini/share/8994b606c020).
+Importantly, see [AN4879](https://www.st.com/resource/en/application_note/an4879-introduction-to-usb-hardware-and-pcb-guidelines-using-stm32-mcus-stmicroelectronics.pdf)
+which says that all models of the STM32F7 have an enbedded
+pull-up resistor. (Rev 10, Jan 2025 current as of this writing.)
+EVT#3 will need to have this removed.
+
+The first implementation will be a USB Keyboard that just
+sends a letter when User1 or User2 buttons are pressed.
+ 
