@@ -577,6 +577,9 @@ EVT#3 will need to have this removed.
 The first implementation will be a USB Keyboard that just
 sends a letter when User1 or User2 buttons are pressed.
 
+[UM1734](https://www.st.com/resource/en/user_manual/um1734-stm32cube-usb-device-library-stmicroelectronics.pdf)
+(Rev 4, Feb 2019) is the manual for USB Devices.
+
 ## Configuration in IOC file
 
 `USB_OTG_FS` under `Connectivity`:
@@ -589,6 +592,13 @@ Middleware, `USB_DEVICE`:
 * Device Descriptor -> Device Descriptor FS -> PRODUCT_STRING:
   DPF MIDI Synth HID
 * Use default VID & PID (1155, 22315)
+* Parameter Settings -> Basic Parameters
+  * USBD_SELF_POWERED: Disabled
+    * [Gemini explanation](https://g.co/gemini/share/9a2090180481), quote:
+    * Meaning: You are telling the USB host, "My device is Bus-Powered."
+    * Implication: The device relies entirely on the power supplied by the USB host via VBUS for its operation.
+    * Apparently I need to set `bMaxPower` of `USBH_CfgDescTypeDef`
+      somewhere, somehow.
 
 After changing the `.ioc` file, remember to generate code.
 Clean and build the code.
