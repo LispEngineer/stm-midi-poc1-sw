@@ -576,4 +576,20 @@ EVT#3 will need to have this removed.
 
 The first implementation will be a USB Keyboard that just
 sends a letter when User1 or User2 buttons are pressed.
- 
+
+## Configuration in IOC file
+
+`USB_OTG_FS` under `Connectivity`:
+* Mode: `Device_Only`
+* Activate_VBUS: `Disable`
+* Activate_SOF: not checked
+
+Middleware, `USB_DEVICE`:
+* Class for FS IP: `Human Interface Device Class (HID)`
+* Device Descriptor -> Device Descriptor FS -> PRODUCT_STRING:
+  DPF MIDI Synth HID
+* Use default VID & PID (1155, 22315)
+
+After changing the `.ioc` file, remember to generate code.
+Clean and build the code.
+
