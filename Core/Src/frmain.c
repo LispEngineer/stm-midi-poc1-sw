@@ -15,6 +15,7 @@
 
 #include "main.h"
 #include "realmain.h"
+#include "frmain.h"
 
 // FreeRTOS includes
 #include "FreeRTOS.h"

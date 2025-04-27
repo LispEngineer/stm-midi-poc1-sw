@@ -580,6 +580,9 @@ sends a letter when User1 or User2 buttons are pressed.
 [UM1734](https://www.st.com/resource/en/user_manual/um1734-stm32cube-usb-device-library-stmicroelectronics.pdf)
 (Rev 4, Feb 2019) is the manual for USB Devices.
 
+Other references:
+* [Keyboard tutorial](https://www.instructables.com/STM32-As-HID-USB-Keyboard-STM32-Tutorials/)
+
 ## Configuration in IOC file
 
 `USB_OTG_FS` under `Connectivity`:
@@ -602,4 +605,14 @@ Middleware, `USB_DEVICE`:
 
 After changing the `.ioc` file, remember to generate code.
 Clean and build the code.
+
+## Configuration in Code
+
+* Mark the HID device as a Keyboard in `usb_hid.c`
+  under Middlewares/ST/STM32_USB_Device_Library/Class/HID/Src
+* Create the Keyboard HID device descriptor in files:
+  * `usbd_hid.h` for the length define `HID_KBD_REPORT_DESC_SIZE`
+  * `usbd_hid.c` for the descriptor `HID_KBD_ReportDesc`
+* Use that in `USBD_HID_Setup()` in lieu of the default Mouse settings
+* Use the length in the `USD_HID_CfgDesc` and `USBD_HID_Desc`
 
